@@ -1,0 +1,6 @@
+luna_sdk_module_target("RG")
+    add_headerfiles("*.hpp", {prefixdir = "Luna/RG"})
+    add_headerfiles("Source/**.hpp", {install = false})
+    add_files("Source/**.cpp")
+    add_deps("Runtime", "RHI")
+target_end()

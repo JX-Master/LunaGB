@@ -1,0 +1,6 @@
+luna_sdk_module_target("Asset")
+    add_headerfiles("*.hpp", {prefixdir = "Luna/Asset"})
+    add_headerfiles("Source/**.hpp", {install = false})
+    add_files("Source/**.cpp")
+    add_deps("Runtime", "VariantUtils", "VFS", "JobSystem")
+target_end()

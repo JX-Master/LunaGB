@@ -1,0 +1,5 @@
+luna_sdk_module_target("JobSystem")
+    add_headerfiles("*.hpp", {prefixdir = "Luna/JobSystem"})
+    add_files("Source/**.cpp")
+    add_deps("Runtime")
+target_end()

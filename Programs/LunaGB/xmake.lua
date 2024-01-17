@@ -1,0 +1,5 @@
+target("LunaGB")
+    set_luna_sdk_program()
+    add_files("**.cpp")
+    add_deps("Runtime", "Window", "RHI", "ImGui", "HID", "AHI")
+target_end()
