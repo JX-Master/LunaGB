@@ -1,4 +1,4 @@
-target("LunaGB")
+target("LunaGB-01")
     set_luna_sdk_program()
     add_headerfiles("**.hpp")
     add_files("**.cpp")
