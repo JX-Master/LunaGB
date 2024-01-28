@@ -25,8 +25,6 @@ struct CPU
     u16 sp;
     //! PC register (Program Counter/Pointer).
     u16 pc;
-    //! The number of cycles before next step.
-    u8 cycles_countdown;
     //! CPU is halted;
     bool halted;
 

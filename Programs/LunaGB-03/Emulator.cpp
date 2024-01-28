@@ -37,14 +37,19 @@ RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
 void Emulator::update(f64 delta_time)
 {
     u64 frame_cycles = (u64)((f32)(4194304.0 * delta_time) * clock_speed_scale);
-    for(u64 i = 0; i < frame_cycles; ++i)
+    u64 end_cycles = clock_cycles + frame_cycles;
+    while(clock_cycles < end_cycles)
     {
         if(paused) break;
+        cpu.step(this);
+    }
+}
+void Emulator::tick(u32 mcycles)
+{
+    u32 tick_cycles = mcycles * 4;
+    for(u32 i = 0; i < tick_cycles; ++i)
+    {
         ++clock_cycles;
-        if((clock_cycles % 4) == 0)
-        {
-            tick_cpu();
-        }
     }
 }
 void Emulator::close()
@@ -110,15 +115,4 @@ void Emulator::bus_write(u16 addr, u8 data)
     }
     log_error("LunaGB", "Unsupported bus write address: 0x%04X", (u32)addr);
     return;
-}
-void Emulator::tick_cpu()
-{
-    if(cpu.cycles_countdown)
-    {
-        --cpu.cycles_countdown;
-    }
-    if(!cpu.cycles_countdown)
-    {
-        cpu.step(this);
-    }
 }

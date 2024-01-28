@@ -11,7 +11,6 @@ void CPU::init()
     hl(0x014D);
     sp = 0xFFFE;
     pc = 0x0100;
-    cycles_countdown = 1;
     halted = false;
 }
 void CPU::step(Emulator* emu)
@@ -28,11 +27,14 @@ void CPU::step(Emulator* emu)
         {
             log_error("LunaGB", "Instruction 0x%02X not present.", (u32)opcode);
             emu->paused = true;
-            cycles_countdown = 1;
         }
         else
         {
             instruction(emu);
         }
+    }
+    else
+    {
+        emu->tick(1);
     }
 }
