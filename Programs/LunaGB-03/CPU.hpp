@@ -53,5 +53,5 @@ struct CPU
     void init();
     void step(Emulator* emu);
 
-    void enable_interruption() { /*TODO*/ }
+    void enable_interrupt_master() { /*TODO*/ }
 };

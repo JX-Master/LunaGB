@@ -901,7 +901,7 @@ void xd8_ret_c(Emulator* emu)
 //! RETI : Returns and enables interruption.
 void xd9_reti(Emulator* emu)
 {
-    emu->cpu.enable_interruption();
+    emu->cpu.enable_interrupt_master();
     xc9_ret(emu);
 }
 //! JP C, a16 : Jumps to the 16-bit address if C is 1.
