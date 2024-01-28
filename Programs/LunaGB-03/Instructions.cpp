@@ -86,9 +86,11 @@ void x06_ld_b_d8(Emulator* emu)
 void x08_ld_a16_sp(Emulator* emu)
 {
     u16 addr = read_d16(emu);
+    emu->tick(2);
     emu->bus_write(addr, (u8)(emu->cpu.sp & 0xFF));
+    emu->tick(1);
     emu->bus_write(addr + 1, (u8)(emu->cpu.sp >> 8));
-    emu->tick(5);
+    emu->tick(2);
 }
 //! LD A (BC) : Loads value from memory pointed by BC to A.
 void x0a_ld_a_mbc(Emulator* emu)
@@ -229,8 +231,9 @@ void x32_ldd_mhl_a(Emulator* emu)
 //! LD (HL), d8 : Stores 8-bit immediate data to memory pointed by HL.
 void x36_ld_mhl_d8(Emulator* emu)
 {
+    u8 data = read_d8(emu);
     emu->tick(1);
-    emu->bus_write(emu->cpu.hl(), read_d8(emu));
+    emu->bus_write(emu->cpu.hl(), data);
     emu->tick(2);
 }
 //! JR C, r8 : Jumps to PC + r8 if C is 1.
@@ -730,15 +733,16 @@ void xc3_jp_a16(Emulator* emu)
 void xc4_call_nz_a16(Emulator* emu)
 {
     u16 addr = read_d16(emu);
+    emu->tick(2);
     if(!emu->cpu.fz())
     {
         push_16(emu, emu->cpu.pc);
         emu->cpu.pc = addr;
-        emu->tick(6);
+        emu->tick(4);
     }
     else
     {
-        emu->tick(3);
+        emu->tick(1);
     }
 }
 //! PUSH BC : Pushes BC to the stack.
@@ -791,24 +795,26 @@ void xca_jp_z_a16(Emulator* emu)
 void xcc_call_z_a16(Emulator* emu)
 {
     u16 addr = read_d16(emu);
+    emu->tick(2);
     if(emu->cpu.fz())
     {
         push_16(emu, emu->cpu.pc);
         emu->cpu.pc = addr;
-        emu->tick(6);
+        emu->tick(4);
     }
     else
     {
-        emu->tick(3);
+        emu->tick(1);
     }
 }
 //! CALL a16 : Calls the function.
 void xcd_call_a16(Emulator* emu)
 {
     u16 addr = read_d16(emu);
+    emu->tick(2);
     push_16(emu, emu->cpu.pc);
     emu->cpu.pc = addr;
-    emu->tick(6);
+    emu->tick(4);
 }
 //! RST 08H : Pushes PC to stack and resets PC to 0x08.
 void xcf_rst_08h(Emulator* emu)
@@ -854,15 +860,16 @@ void xd2_jp_nc_a16(Emulator* emu)
 void xd4_call_nc_a16(Emulator* emu)
 {
     u16 addr = read_d16(emu);
+    emu->tick(2);
     if(!emu->cpu.fc())
     {
         push_16(emu, emu->cpu.pc);
         emu->cpu.pc = addr;
-        emu->tick(6);
+        emu->tick(4);
     }
     else
     {
-        emu->tick(3);
+        emu->tick(1);
     }
 }
 //! PUSH DE : Pushes DE to the stack.
@@ -915,15 +922,16 @@ void xda_jp_c_a16(Emulator* emu)
 void xdc_call_c_a16(Emulator* emu)
 {
     u16 addr = read_d16(emu);
+    emu->tick(2);
     if(emu->cpu.fc())
     {
         push_16(emu, emu->cpu.pc);
         emu->cpu.pc = addr;
-        emu->tick(6);
+        emu->tick(4);
     }
     else
     {
-        emu->tick(3);
+        emu->tick(1);
     }
 }
 //! RST 18H : Pushes PC to stack and resets PC to 0x18.
@@ -975,8 +983,9 @@ void xe9_jp_hl(Emulator* emu)
 //! LD (a16), A : Stores A to the memory address.
 void xea_ld_a16_a(Emulator* emu)
 {
+    u16 addr = read_d16(emu);
     emu->tick(2);
-    emu->bus_write(read_d16(emu), emu->cpu.a);
+    emu->bus_write(addr, emu->cpu.a);
     emu->tick(2);
 }
 //! RST 28H : Pushes PC to stack and resets PC to 0x28.
@@ -1044,8 +1053,9 @@ void xf9_ld_sp_hl(Emulator* emu)
 //! LD A, (a16) : Loads data at memory address to A.
 void xfa_ld_a_a16(Emulator* emu)
 {
+    u16 addr = read_d16(emu);
     emu->tick(2);
-    emu->cpu.a = emu->bus_read(read_d16(emu));
+    emu->cpu.a = emu->bus_read(addr);
     emu->tick(2);
 }
 //! CP d8 : Compares A with 8-bit immediate data.
