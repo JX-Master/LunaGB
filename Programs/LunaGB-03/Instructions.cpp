@@ -1035,6 +1035,7 @@ void xf8_ld_hl_sp_r8(Emulator* emu)
     emu->cpu.reset_fn();
     u16 v1 = emu->cpu.sp;
     i16 v2 = (i16)((i8)read_d8(emu));
+    emu->tick(1);
     u16 r = v1 + v2;
     u16 check = v1 ^ v2 ^ r;
     if(check & 0x10) emu->cpu.set_fh();
@@ -1042,7 +1043,7 @@ void xf8_ld_hl_sp_r8(Emulator* emu)
     if(check & 0x100) emu->cpu.set_fc();
     else emu->cpu.reset_fc();
     emu->cpu.hl(r);
-    emu->tick(3);
+    emu->tick(2);
 }
 //! LD SP, HL : Loads HL to SP.
 void xf9_ld_sp_hl(Emulator* emu)
