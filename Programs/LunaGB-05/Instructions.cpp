@@ -177,6 +177,157 @@ inline u8 or_8(Emulator* emu, u8 v1, u8 v2)
     emu->cpu.reset_fc();
     return r;
 }
+inline void rlc_8(Emulator* emu, u8& v)
+{
+    bool carry = (v & 0x80) != 0;
+    v <<= 1;
+    if(carry)
+    {
+        v |= 0x01;
+        emu->cpu.set_fc();
+    }
+    else
+    {
+        emu->cpu.reset_fc();
+    }
+    set_zero_flag(emu, v);
+    emu->cpu.reset_fn();
+    emu->cpu.reset_fh();
+}
+inline void rrc_8(Emulator* emu, u8& v)
+{
+    bool carry = (v & 0x01) != 0;
+    v >>= 1;
+    if(carry)
+    {
+        v |= 0x80;
+        emu->cpu.set_fc();
+    }
+    else
+    {
+        emu->cpu.reset_fc();
+    }
+    set_zero_flag(emu, v);
+    emu->cpu.reset_fn();
+    emu->cpu.reset_fh();
+}
+inline void rl_8(Emulator* emu, u8& v)
+{
+    bool carry = (v & 0x80) != 0;
+    v <<= 1;
+    if(emu->cpu.fc())
+    {
+        v |= 0x01;
+    }
+    if(carry)
+    {
+        emu->cpu.set_fc();
+    }
+    else
+    {
+        emu->cpu.reset_fc();
+    }
+    set_zero_flag(emu, v);
+    emu->cpu.reset_fn();
+    emu->cpu.reset_fh();
+}
+inline void rr_8(Emulator* emu, u8& v)
+{
+    bool carry = (v & 0x01) != 0;
+    v >>= 1;
+    if(emu->cpu.fc())
+    {
+        v |= 0x80;
+    }
+    if(carry)
+    {
+        emu->cpu.set_fc();
+    }
+    else
+    {
+        emu->cpu.reset_fc();
+    }
+    set_zero_flag(emu, v);
+    emu->cpu.reset_fn();
+    emu->cpu.reset_fh();
+}
+inline void sla_8(Emulator* emu, u8& v)
+{
+    bool carry = (v & 0x80) != 0;
+    v <<= 1;
+    if(carry)
+    {
+        emu->cpu.set_fc();
+    }
+    else
+    {
+        emu->cpu.reset_fc();
+    }
+    set_zero_flag(emu, v);
+    emu->cpu.reset_fn();
+    emu->cpu.reset_fh();
+}
+inline void sra_8(Emulator* emu, u8& v)
+{
+    bool carry = (v & 0x01) != 0;
+    v = (v & 0x80) | ((v >> 1) & 0x7F);
+    if(carry)
+    {
+        emu->cpu.set_fc();
+    }
+    else
+    {
+        emu->cpu.reset_fc();
+    }
+    set_zero_flag(emu, v);
+    emu->cpu.reset_fn();
+    emu->cpu.reset_fh();
+}
+inline void srl_8(Emulator* emu, u8& v)
+{
+    bool carry = (v & 0x01) != 0;
+    v = (v >> 1) & 0x7F;
+    if(carry)
+    {
+        emu->cpu.set_fc();
+    }
+    else
+    {
+        emu->cpu.reset_fc();
+    }
+    set_zero_flag(emu, v);
+    emu->cpu.reset_fn();
+    emu->cpu.reset_fh();
+}
+inline void swap_8(Emulator* emu, u8& v)
+{
+    v = ((v >> 4) & 0x0F) + ((v << 4) & 0xF0);
+    set_zero_flag(emu, v);
+    emu->cpu.reset_fc();
+    emu->cpu.reset_fn();
+    emu->cpu.reset_fh();
+}
+inline void bit_8(Emulator* emu, u8 v, u8 bit)
+{
+    if(bit_test(&v, bit))
+    {
+        emu->cpu.reset_fz();
+    }
+    else
+    {
+        emu->cpu.set_fz();
+    }
+    emu->cpu.reset_fn();
+    emu->cpu.set_fh();
+}
+inline void res_8(Emulator* emu, u8& v, u8 bit)
+{
+    bit_reset(&v, bit);
+}
+inline void set_8(Emulator* emu, u8& v, u8 bit)
+{
+    bit_set(&v, bit);
+}
 //! NOP : Do nothing.
 void x00_nop(Emulator* emu)
 {
@@ -218,6 +369,13 @@ void x06_ld_b_d8(Emulator* emu)
 {
     emu->cpu.b = read_d8(emu);
     emu->tick(2);
+}
+//! RLCA : Rotates A left.
+void x07_rlca(Emulator* emu)
+{
+    rlc_8(emu, emu->cpu.a);
+    emu->cpu.reset_fz();
+    emu->tick(1);
 }
 //! LD (a16), SP : Stores SP to the specified address.
 void x08_ld_a16_sp(Emulator* emu)
@@ -265,6 +423,20 @@ void x0e_ld_c_d8(Emulator* emu)
     emu->cpu.c = read_d8(emu);
     emu->tick(2);
 }
+//! RRCA : Rotates A right.
+void x0f_rrca(Emulator* emu)
+{
+    rrc_8(emu, emu->cpu.a);
+    emu->cpu.reset_fz();
+    emu->tick(1);
+}
+//! STOP : Stops CPU.
+void x10_stop(Emulator* emu)
+{
+    read_d8(emu); // always 0x00.
+    emu->paused = true;
+    emu->tick(1);
+}
 //! LD DE, d16 : Loads 16-bit immediate data to DE.
 void x11_ld_de_d16(Emulator* emu)
 {
@@ -300,6 +472,13 @@ void x16_ld_d_d8(Emulator* emu)
 {
     emu->cpu.d = read_d8(emu);
     emu->tick(2);
+}
+//! RLA : Rotates A left through carry.
+void x17_rla(Emulator* emu)
+{
+    rl_8(emu, emu->cpu.a);
+    emu->cpu.reset_fz();
+    emu->tick(1);
 }
 //! JR r8 : Jumps to PC + r8.
 void x18_jr_r8(Emulator* emu)
@@ -343,6 +522,13 @@ void x1e_ld_e_d8(Emulator* emu)
 {
     emu->cpu.e = read_d8(emu);
     emu->tick(2);
+}
+//! RRA : Rotates A right through carry.
+void x1f_rra(Emulator* emu)
+{
+    rr_8(emu, emu->cpu.a);
+    emu->cpu.reset_fz();
+    emu->tick(1);
 }
 //! JR NZ, r8 : Jumps to PC + r8 if Z is 0.
 void x20_jr_nz_r8(Emulator* emu)
@@ -943,6 +1129,12 @@ void x75_ld_mhl_l(Emulator* emu)
     emu->bus_write(emu->cpu.hl(), emu->cpu.l);
     emu->tick(2);
 }
+//! HALT : Pauses the CPU.
+void x76_halt(Emulator* emu)
+{
+    emu->cpu.halted = true;
+    emu->tick(1);
+}
 //! LD (HL), A : Stores A to the memory pointed by HL.
 void x77_ld_mhl_a(Emulator* emu)
 {
@@ -1505,6 +1697,58 @@ void xca_jp_z_a16(Emulator* emu)
         emu->tick(3);
     }
 }
+//! PREFIX CB : Invokes CB instructions.
+void xcb_prefix_cb(Emulator* emu)
+{
+    u8 op = read_d8(emu);
+    emu->tick(1);
+    u8 data_bits = op & 0x07;
+    u8 data;
+    // Load data.
+    switch(data_bits)
+    {
+        case 0: data = emu->cpu.b; break;
+        case 1: data = emu->cpu.c; break;
+        case 2: data = emu->cpu.d; break;
+        case 3: data = emu->cpu.e; break;
+        case 4: data = emu->cpu.h; break;
+        case 5: data = emu->cpu.l; break;
+        case 6: data = emu->bus_read(emu->cpu.hl()); emu->tick(1); break;
+        case 7: data = emu->cpu.a; break;
+        default: lupanic(); break;
+    }
+    // Modify data.
+    u8 op_bits = (op & 0xF8) >> 3;
+    if(op_bits == 0) rlc_8(emu, data);
+    else if(op_bits == 1) rrc_8(emu, data);
+    else if(op_bits == 2) rl_8(emu, data);
+    else if(op_bits == 3) rr_8(emu, data);
+    else if(op_bits == 4) sla_8(emu, data);
+    else if(op_bits == 5) sra_8(emu, data);
+    else if(op_bits == 6) swap_8(emu, data);
+    else if(op_bits == 7) srl_8(emu, data);
+    else if(op_bits <= 0x0F) bit_8(emu, data, op_bits - 0x08);
+    else if(op_bits <= 0x17) res_8(emu, data, op_bits - 0x10);
+    else if(op_bits <= 0x1F) set_8(emu, data, op_bits - 0x18);
+    else lupanic();
+    // Store data if op is not BIT (which does not modify data).
+    if(op_bits <= 0x07 || op_bits >= 0x10)
+    {
+        switch(data_bits)
+        {
+            case 0: emu->cpu.b = data; break;
+            case 1: emu->cpu.c = data; break;
+            case 2: emu->cpu.d = data; break;
+            case 3: emu->cpu.e = data; break;
+            case 4: emu->cpu.h = data; break;
+            case 5: emu->cpu.l = data; break;
+            case 6: emu->bus_write(emu->cpu.hl(), data); emu->tick(1); break;
+            case 7: emu->cpu.a = data; break;
+            default: lupanic(); break;
+        }
+    }
+    emu->tick(1);
+}
 //! CALL Z, a16 : Calls the function if Z is 1.
 void xcc_call_z_a16(Emulator* emu)
 {
@@ -1853,20 +2097,20 @@ void xff_rst_38h(Emulator* emu)
 }
 instruction_func_t* instructions_map[256] = 
 {
-    x00_nop,      x01_ld_bc_d16, x02_ld_mbc_a,  x03_inc_bc, x04_inc_b,   x05_dec_b,   x06_ld_b_d8,   nullptr, x08_ld_a16_sp, x09_add_hl_bc, x0a_ld_a_mbc,  x0b_dec_bc, x0c_inc_c, x0d_dec_c, x0e_ld_c_d8, nullptr, 
-    nullptr,      x11_ld_de_d16, x12_ld_mde_a,  x13_inc_de, x14_inc_d,   x15_dec_d,   x16_ld_d_d8,   nullptr, x18_jr_r8,     x19_add_hl_de, x1a_ld_a_mde,  x1b_dec_de, x1c_inc_e, x1d_dec_e, x1e_ld_e_d8, nullptr, 
+    x00_nop,      x01_ld_bc_d16, x02_ld_mbc_a,  x03_inc_bc, x04_inc_b,   x05_dec_b,   x06_ld_b_d8,   x07_rlca, x08_ld_a16_sp, x09_add_hl_bc, x0a_ld_a_mbc,  x0b_dec_bc, x0c_inc_c, x0d_dec_c, x0e_ld_c_d8, x0f_rrca, 
+    x10_stop,     x11_ld_de_d16, x12_ld_mde_a,  x13_inc_de, x14_inc_d,   x15_dec_d,   x16_ld_d_d8,   x17_rla,  x18_jr_r8,     x19_add_hl_de, x1a_ld_a_mde,  x1b_dec_de, x1c_inc_e, x1d_dec_e, x1e_ld_e_d8, x1f_rra, 
     x20_jr_nz_r8, x21_ld_hl_d16, x22_ldi_mhl_a, x23_inc_hl, x24_inc_h,   x25_dec_h,   x26_ld_h_d8,   x27_daa, x28_jr_z_r8,   x29_add_hl_hl, x2a_ldi_a_mhl, x2b_dec_hl, x2c_inc_l, x2d_dec_l, x2e_ld_l_d8, x2f_cpl, 
     x30_jr_nc_r8, x31_ld_sp_d16, x32_ldd_mhl_a, x33_inc_sp, x34_inc_mhl, x35_dec_mhl, x36_ld_mhl_d8, x37_scf, x38_jr_c_r8,   x39_add_hl_sp, x3a_ldd_a_mhl, x3b_dec_sp, x3c_inc_a, x3d_dec_a, x3e_ld_a_d8, x3f_ccf, 
     x40_ld_b_b,   x41_ld_b_c,   x42_ld_b_d,   x43_ld_b_e,   x44_ld_b_h,   x45_ld_b_l,   x46_ld_b_mhl, x47_ld_b_a,   x48_ld_c_b, x49_ld_c_c, x4a_ld_c_d, x4b_ld_c_e, x4c_ld_c_h, x4d_ld_c_l, x4e_ld_c_mhl, x4f_ld_c_a,
     x50_ld_d_b,   x51_ld_d_c,   x52_ld_d_d,   x53_ld_d_e,   x54_ld_d_h,   x55_ld_d_l,   x56_ld_d_mhl, x57_ld_d_a,   x58_ld_e_b, x59_ld_e_c, x5a_ld_e_d, x5b_ld_e_e, x5c_ld_e_h, x5d_ld_e_l, x5e_ld_e_mhl, x5f_ld_e_a,
     x60_ld_h_b,   x61_ld_h_c,   x62_ld_h_d,   x63_ld_h_e,   x64_ld_h_h,   x65_ld_h_l,   x66_ld_h_mhl, x67_ld_h_a,   x68_ld_l_b, x69_ld_l_c, x6a_ld_l_d, x6b_ld_l_e, x6c_ld_l_h, x6d_ld_l_l, x6e_ld_l_mhl, x6f_ld_l_a,
-    x70_ld_mhl_b, x71_ld_mhl_c, x72_ld_mhl_d, x73_ld_mhl_e, x74_ld_mhl_h, x75_ld_mhl_l, nullptr,      x77_ld_mhl_a, x78_ld_a_b, x79_ld_a_c, x7a_ld_a_d, x7b_ld_a_e, x7c_ld_a_h, x7d_ld_a_l, x7e_ld_a_mhl, x7f_ld_a_a,
+    x70_ld_mhl_b, x71_ld_mhl_c, x72_ld_mhl_d, x73_ld_mhl_e, x74_ld_mhl_h, x75_ld_mhl_l, x76_halt,     x77_ld_mhl_a, x78_ld_a_b, x79_ld_a_c, x7a_ld_a_d, x7b_ld_a_e, x7c_ld_a_h, x7d_ld_a_l, x7e_ld_a_mhl, x7f_ld_a_a,
     x80_add_a_b, x81_add_a_c, x82_add_a_d, x83_add_a_e, x84_add_a_h, x85_add_a_l, x86_add_a_mhl, x87_add_a_a, x88_adc_a_b, x89_adc_a_c, x8a_adc_a_d, x8b_adc_a_e, x8c_adc_a_h, x8d_adc_a_l, x8e_adc_a_mhl, x8f_adc_a_a,
     x90_sub_b, x91_sub_c, x92_sub_d, x93_sub_e, x94_sub_h, x95_sub_l, x96_sub_mhl, x97_sub_a, x98_sbc_a_b, x99_sbc_a_c, x9a_sbc_a_d, x9b_sbc_a_e, x9c_sbc_a_h, x9d_sbc_a_l, x9e_sbc_a_mhl, x9f_sbc_a_a,
     xa0_and_b, xa1_and_c, xa2_and_d, xa3_and_e, xa4_and_h, xa5_and_l, xa6_and_mhl, xa7_and_a, xa8_xor_b, xa9_xor_c, xaa_xor_d, xab_xor_e, xac_xor_h, xad_xor_l, xae_xor_mhl, xaf_xor_a,
     xb0_or_b,  xb1_or_c,  xb2_or_d,  xb3_or_e,  xb4_or_h,  xb5_or_l,  xb6_or_mhl,  xb7_or_a,  xb8_cp_b, xb9_cp_c, xba_cp_d, xbb_cp_e, xbc_cp_h, xbd_cp_l, xbe_cp_mhl, xbf_cp_a,
-    xc0_ret_nz,   xc1_pop_bc, xc2_jp_nz_a16, xc3_jp_a16, xc4_call_nz_a16, xc5_push_bc, xc6_add_a_d8, xc7_rst_00h, xc8_ret_z,       xc9_ret,      xca_jp_z_a16, nullptr, xcc_call_z_a16, xcd_call_a16, xce_adc_a_d8, xcf_rst_08h, 
-    xd0_ret_nc,   xd1_pop_de, xd2_jp_nc_a16, nullptr,    xd4_call_nc_a16, xd5_push_de, xd6_sub_d8,   xd7_rst_10h, xd8_ret_c,       xd9_reti,     xda_jp_c_a16, nullptr, xdc_call_c_a16, nullptr,      xde_sbc_a_d8, xdf_rst_18h, 
-    xe0_ldh_m8_a, xe1_pop_hl, xe2_ld_mc_a,   nullptr,    nullptr,         xe5_push_hl, xe6_and_d8,   xe7_rst_20h, xe8_add_sp_r8,   xe9_jp_hl,    xea_ld_a16_a, nullptr, nullptr,        nullptr,      xee_xor_d8,   xef_rst_28h, 
-    xf0_ldh_a_m8, xf1_pop_af, xf2_ld_a_mc,   nullptr,    nullptr,         xf5_push_af, xf6_or_d8,    xf7_rst_30h, xf8_ld_hl_sp_r8, xf9_ld_sp_hl, xfa_ld_a_a16, nullptr, nullptr,        nullptr,      xfe_cp_d8,    xff_rst_38h
+    xc0_ret_nz,   xc1_pop_bc, xc2_jp_nz_a16, xc3_jp_a16, xc4_call_nz_a16, xc5_push_bc, xc6_add_a_d8, xc7_rst_00h, xc8_ret_z,       xc9_ret,      xca_jp_z_a16, xcb_prefix_cb, xcc_call_z_a16, xcd_call_a16, xce_adc_a_d8, xcf_rst_08h, 
+    xd0_ret_nc,   xd1_pop_de, xd2_jp_nc_a16, nullptr,    xd4_call_nc_a16, xd5_push_de, xd6_sub_d8,   xd7_rst_10h, xd8_ret_c,       xd9_reti,     xda_jp_c_a16, nullptr,       xdc_call_c_a16, nullptr,      xde_sbc_a_d8, xdf_rst_18h, 
+    xe0_ldh_m8_a, xe1_pop_hl, xe2_ld_mc_a,   nullptr,    nullptr,         xe5_push_hl, xe6_and_d8,   xe7_rst_20h, xe8_add_sp_r8,   xe9_jp_hl,    xea_ld_a16_a, nullptr,       nullptr,        nullptr,      xee_xor_d8,   xef_rst_28h, 
+    xf0_ldh_a_m8, xf1_pop_af, xf2_ld_a_mc,   nullptr,    nullptr,         xf5_push_af, xf6_or_d8,    xf7_rst_30h, xf8_ld_hl_sp_r8, xf9_ld_sp_hl, xfa_ld_a_a16, nullptr,       nullptr,        nullptr,      xfe_cp_d8,    xff_rst_38h
 };
