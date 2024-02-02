@@ -3,6 +3,12 @@
 #include "CPU.hpp"
 using namespace Luna;
 
+constexpr u8 INT_VBLANK = 1;
+constexpr u8 INT_LCD_STAT = 2;
+constexpr u8 INT_TIMER = 4;
+constexpr u8 INT_SERIAL = 8;
+constexpr u8 INT_JOYPAD = 16;
+
 struct Emulator
 {
     byte_t* rom_data = nullptr;
@@ -19,6 +25,11 @@ struct Emulator
 
     byte_t vram[8_kb];
     byte_t wram[8_kb];
+
+    //! 0xFF0F - The interruption flags.
+    u8 int_flags;
+    //! 0xFFFF - The interruption enabling flags.
+    u8 int_enable_flags;
 
     RV init(const void* cartridge_data, usize cartridge_data_size);
     void update(f64 delta_time);

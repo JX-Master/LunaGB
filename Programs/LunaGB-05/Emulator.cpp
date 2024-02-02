@@ -32,6 +32,8 @@ RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
     cpu.init();
     memzero(wram, 8_kb);
     memzero(vram, 8_kb);
+    int_flags = 0;
+    int_enable_flags = 0;
     return ok;
 }
 void Emulator::update(f64 delta_time)
@@ -84,6 +86,16 @@ u8 Emulator::bus_read(u16 addr)
         // Working RAM.
         return wram[addr - 0xC000];
     }
+    if(addr == 0xFF0F)
+    {
+        // IF
+        return int_flags | 0xE0;
+    }
+    if(addr == 0xFFFF)
+    {
+        // IE
+        return int_enable_flags | 0xE0;
+    }
     log_error("LunaGB", "Unsupported bus read address: 0x%04X", (u32)addr);
     return 0xFF;
 }
@@ -111,6 +123,18 @@ void Emulator::bus_write(u16 addr, u8 data)
     {
         // Working RAM.
         wram[addr - 0xC000] = data;
+        return;
+    }
+    if(addr == 0xFF0F)
+    {
+        // IF
+        int_flags = data & 0x1F;
+        return;
+    }
+    if(addr == 0xFFFF)
+    {
+        // IE
+        int_enable_flags = data & 0x1F;
         return;
     }
     log_error("LunaGB", "Unsupported bus write address: 0x%04X", (u32)addr);

@@ -2030,6 +2030,12 @@ void xf2_ld_a_mc(Emulator* emu)
     emu->cpu.a = emu->bus_read(0xFF00 + (u16)emu->cpu.c);
     emu->tick(2);
 }
+//! DI : Disable interrupts.
+void xf3_di(Emulator* emu)
+{
+    emu->cpu.disable_interrupt_master();
+    emu->tick(1);
+}
 //! PUSH AF : Pushes AF to the stack.
 void xf5_push_af(Emulator* emu)
 {
@@ -2082,6 +2088,12 @@ void xfa_ld_a_a16(Emulator* emu)
     emu->cpu.a = emu->bus_read(addr);
     emu->tick(2);
 }
+//! EI : Enable interruption.
+void xfb_ei(Emulator* emu)
+{
+    emu->cpu.enable_interrupt_master();
+    emu->tick(1);
+}
 //! CP d8 : Compares A with 8-bit immediate data.
 void xfe_cp_d8(Emulator* emu)
 {
@@ -2112,5 +2124,5 @@ instruction_func_t* instructions_map[256] =
     xc0_ret_nz,   xc1_pop_bc, xc2_jp_nz_a16, xc3_jp_a16, xc4_call_nz_a16, xc5_push_bc, xc6_add_a_d8, xc7_rst_00h, xc8_ret_z,       xc9_ret,      xca_jp_z_a16, xcb_prefix_cb, xcc_call_z_a16, xcd_call_a16, xce_adc_a_d8, xcf_rst_08h, 
     xd0_ret_nc,   xd1_pop_de, xd2_jp_nc_a16, nullptr,    xd4_call_nc_a16, xd5_push_de, xd6_sub_d8,   xd7_rst_10h, xd8_ret_c,       xd9_reti,     xda_jp_c_a16, nullptr,       xdc_call_c_a16, nullptr,      xde_sbc_a_d8, xdf_rst_18h, 
     xe0_ldh_m8_a, xe1_pop_hl, xe2_ld_mc_a,   nullptr,    nullptr,         xe5_push_hl, xe6_and_d8,   xe7_rst_20h, xe8_add_sp_r8,   xe9_jp_hl,    xea_ld_a16_a, nullptr,       nullptr,        nullptr,      xee_xor_d8,   xef_rst_28h, 
-    xf0_ldh_a_m8, xf1_pop_af, xf2_ld_a_mc,   nullptr,    nullptr,         xf5_push_af, xf6_or_d8,    xf7_rst_30h, xf8_ld_hl_sp_r8, xf9_ld_sp_hl, xfa_ld_a_a16, nullptr,       nullptr,        nullptr,      xfe_cp_d8,    xff_rst_38h
+    xf0_ldh_a_m8, xf1_pop_af, xf2_ld_a_mc,   xf3_di,     nullptr,         xf5_push_af, xf6_or_d8,    xf7_rst_30h, xf8_ld_hl_sp_r8, xf9_ld_sp_hl, xfa_ld_a_a16, xfb_ei,        nullptr,        nullptr,      xfe_cp_d8,    xff_rst_38h
 };
