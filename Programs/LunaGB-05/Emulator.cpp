@@ -91,6 +91,11 @@ u8 Emulator::bus_read(u16 addr)
         // IF
         return int_flags | 0xE0;
     }
+    if(addr >= 0xFF80 && addr <= 0xFFFE)
+    {
+        // High RAM.
+        return hram[addr - 0xFF80];
+    }
     if(addr == 0xFFFF)
     {
         // IE
@@ -129,6 +134,12 @@ void Emulator::bus_write(u16 addr, u8 data)
     {
         // IF
         int_flags = data & 0x1F;
+        return;
+    }
+    if(addr >= 0xFF80 && addr <= 0xFFFE)
+    {
+        // High RAM.
+        hram[addr - 0xFF80] = data;
         return;
     }
     if(addr == 0xFFFF)

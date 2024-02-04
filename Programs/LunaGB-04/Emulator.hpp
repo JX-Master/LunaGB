@@ -19,6 +19,7 @@ struct Emulator
 
     byte_t vram[8_kb];
     byte_t wram[8_kb];
+    byte_t hram[128];
 
     RV init(const void* cartridge_data, usize cartridge_data_size);
     void update(f64 delta_time);

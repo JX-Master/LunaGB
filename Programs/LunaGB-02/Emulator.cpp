@@ -84,6 +84,11 @@ u8 Emulator::bus_read(u16 addr)
         // Working RAM.
         return wram[addr - 0xC000];
     }
+    if(addr >= 0xFF80 && addr <= 0xFFFE)
+    {
+        // High RAM.
+        return hram[addr - 0xFF80];
+    }
     log_error("LunaGB", "Unsupported bus read address: 0x%04X", (u32)addr);
     return 0xFF;
 }
@@ -111,6 +116,12 @@ void Emulator::bus_write(u16 addr, u8 data)
     {
         // Working RAM.
         wram[addr - 0xC000] = data;
+        return;
+    }
+    if(addr >= 0xFF80 && addr <= 0xFFFE)
+    {
+        // High RAM.
+        hram[addr - 0xFF80] = data;
         return;
     }
     log_error("LunaGB", "Unsupported bus write address: 0x%04X", (u32)addr);
