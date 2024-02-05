@@ -279,7 +279,7 @@ void DebugWindow::cpu_gui()
 {
     if(g_app->emulator)
     {
-        if(ImGui::CollapsingHeader("CPU Registers"))
+        if(ImGui::CollapsingHeader("CPU Info"))
         {
             auto& cpu = g_app->emulator->cpu;
             if(ImGui::BeginTable("Byte registers", 6, ImGuiTableFlags_Borders))
@@ -386,6 +386,7 @@ void DebugWindow::cpu_gui()
             {
                 ImGui::Text("CPU Halted.");
             }
+            ImGui::DragFloat("CPU Speed Scale", &g_app->emulator->clock_speed_scale, 0.001f);
         }
         if(ImGui::CollapsingHeader("CPU Stepping"))
         {
@@ -445,7 +446,6 @@ void DebugWindow::cpu_gui()
             }
             ImGui::Text("Log size: %llu bytes.", (u64)cpu_log.size());
         }
-        ImGui::DragFloat("CPU Speed Scale", &g_app->emulator->clock_speed_scale, 0.001f);
     }
 }
 void DebugWindow::serial_gui()
@@ -453,7 +453,7 @@ void DebugWindow::serial_gui()
     if(g_app->emulator)
     {
         // Read serial data.
-        if(!g_app->emulator->serial.output_buffer.empty())
+        while(!g_app->emulator->serial.output_buffer.empty())
         {
             u8 data = g_app->emulator->serial.output_buffer.front();
             g_app->emulator->serial.output_buffer.pop_front();
