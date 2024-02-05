@@ -2,6 +2,7 @@
 #include <Luna/RHI/Device.hpp>
 #include "Emulator.hpp"
 #include <Luna/Runtime/UniquePtr.hpp>
+#include "DebugWindow.hpp"
 using namespace Luna;
 
 struct App
@@ -27,6 +28,9 @@ struct App
     //! The ticks for last frame.
     u64 last_frame_ticks;
 
+    //! The debug window context.
+    DebugWindow debug_window;
+
     RV init();
     RV update();
     ~App();
@@ -37,3 +41,5 @@ struct App
     void open_cartridge();
     void close_cartridge();
 };
+
+extern App* g_app;

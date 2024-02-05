@@ -34,6 +34,8 @@ RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
     memzero(vram, 8_kb);
     int_flags = 0;
     int_enable_flags = 0;
+    timer.init();
+    serial.init();
     return ok;
 }
 void Emulator::update(f64 delta_time)
@@ -52,6 +54,12 @@ void Emulator::tick(u32 mcycles)
     for(u32 i = 0; i < tick_cycles; ++i)
     {
         ++clock_cycles;
+        timer.tick(this);
+        if((clock_cycles % 512) == 0)
+        {
+            // Serial is ticked at 8192Hz.
+            serial.tick(this);
+        }
     }
 }
 void Emulator::close()
@@ -85,6 +93,14 @@ u8 Emulator::bus_read(u16 addr)
     {
         // Working RAM.
         return wram[addr - 0xC000];
+    }
+    if(addr >= 0xFF01 && addr <= 0xFF02)
+    {
+        return serial.bus_read(addr);
+    }
+    if(addr >= 0xFF04 && addr <= 0xFF07)
+    {
+        return timer.bus_read(addr);
     }
     if(addr == 0xFF0F)
     {
@@ -128,6 +144,16 @@ void Emulator::bus_write(u16 addr, u8 data)
     {
         // Working RAM.
         wram[addr - 0xC000] = data;
+        return;
+    }
+    if(addr >= 0xFF01 && addr <= 0xFF02)
+    {
+        serial.bus_write(addr, data);
+        return;
+    }
+    if(addr >= 0xFF04 && addr <= 0xFF07)
+    {
+        timer.bus_write(addr, data);
         return;
     }
     if(addr == 0xFF0F)

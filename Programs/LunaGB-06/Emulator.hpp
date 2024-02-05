@@ -1,6 +1,8 @@
 #pragma once
 #include <Luna/Runtime/Result.hpp>
 #include "CPU.hpp"
+#include "Timer.hpp"
+#include "Serial.hpp"
 using namespace Luna;
 
 constexpr u8 INT_VBLANK = 1;
@@ -31,6 +33,9 @@ struct Emulator
     u8 int_flags;
     //! 0xFFFF - The interruption enabling flags.
     u8 int_enable_flags;
+
+    Timer timer;
+    Serial serial;
 
     RV init(const void* cartridge_data, usize cartridge_data_size);
     void update(f64 delta_time);

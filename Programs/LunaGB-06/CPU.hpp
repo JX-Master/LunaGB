@@ -57,6 +57,8 @@ struct CPU
     void init();
     void step(Emulator* emu);
 
+    void log(Emulator* emu);
+
     void enable_interrupt_master()
     {
         interrupt_master_enabling_countdown = 2;
