@@ -79,14 +79,14 @@ RV App::update()
         cmdbuf->end_render_pass();
         // Render GUI.
         luexp(ImGuiUtils::render_draw_data(ImGui::GetDrawData(), cmdbuf, back_buffer));
-		cmdbuf->resource_barrier({}, {
-			{back_buffer, RHI::TEXTURE_BARRIER_ALL_SUBRESOURCES, RHI::TextureStateFlag::automatic, RHI::TextureStateFlag::present, RHI::ResourceBarrierFlag::none}
-			});
+        cmdbuf->resource_barrier({}, {
+            {back_buffer, RHI::TEXTURE_BARRIER_ALL_SUBRESOURCES, RHI::TextureStateFlag::automatic, RHI::TextureStateFlag::present, RHI::ResourceBarrierFlag::none}
+            });
         // Submit render commands and present the back buffer.
-		luexp(cmdbuf->submit({}, {}, true));
-		cmdbuf->wait();
-		luexp(cmdbuf->reset());
-		luexp(swap_chain->present());
+        luexp(cmdbuf->submit({}, {}, true));
+        cmdbuf->wait();
+        luexp(cmdbuf->reset());
+        luexp(swap_chain->present());
     }
     lucatchret;
     return ok;
@@ -114,9 +114,9 @@ void App::draw_gui()
 void App::draw_main_menu_bar()
 {
     if (ImGui::BeginMainMenuBar())
-	{
-		if (ImGui::BeginMenu("File"))
-		{
+    {
+        if (ImGui::BeginMenu("File"))
+        {
             if(ImGui::MenuItem("Open"))
             {
                 open_cartridge();
@@ -133,8 +133,8 @@ void App::draw_main_menu_bar()
             {
                 close_cartridge();
             }
-			ImGui::EndMenu();
-		}
+            ImGui::EndMenu();
+        }
         if (ImGui::BeginMenu("Play"))
         {
             if(ImGui::MenuItem("Play"))
@@ -161,8 +161,8 @@ void App::draw_main_menu_bar()
             }
             ImGui::EndMenu();
         }
-		ImGui::EndMainMenuBar();
-	}
+        ImGui::EndMainMenuBar();
+    }
 }
 void App::open_cartridge()
 {
