@@ -36,6 +36,7 @@ RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
     int_enable_flags = 0;
     timer.init();
     serial.init();
+    ppu.init();
     return ok;
 }
 void Emulator::update(f64 delta_time)
@@ -60,6 +61,7 @@ void Emulator::tick(u32 mcycles)
             // Serial is ticked at 8192Hz.
             serial.tick(this);
         }
+        ppu.tick(this);
     }
 }
 void Emulator::close()
@@ -106,6 +108,10 @@ u8 Emulator::bus_read(u16 addr)
     {
         // IF
         return int_flags | 0xE0;
+    }
+    if(addr >= 0xFF40 && addr <= 0xFF4B)
+    {
+        return ppu.bus_read(addr);
     }
     if(addr >= 0xFF80 && addr <= 0xFFFE)
     {
@@ -160,6 +166,11 @@ void Emulator::bus_write(u16 addr, u8 data)
     {
         // IF
         int_flags = data & 0x1F;
+        return;
+    }
+    if(addr >= 0xFF40 && addr <= 0xFF4B)
+    {
+        ppu.bus_write(addr, data);
         return;
     }
     if(addr >= 0xFF80 && addr <= 0xFFFE)
