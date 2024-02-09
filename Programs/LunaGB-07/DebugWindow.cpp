@@ -3,6 +3,8 @@
 #include <Luna/ImGui/ImGui.hpp>
 #include <Luna/Window/FileDialog.hpp>
 #include <Luna/Runtime/File.hpp>
+#include <Luna/Runtime/Log.hpp>
+#include <Luna/RHI/Utility.hpp>
 
 void DebugWindow::gui()
 {
@@ -10,6 +12,7 @@ void DebugWindow::gui()
     {
         cpu_gui();
         serial_gui();
+        tiles_gui();
     }
     ImGui::End();
 }
@@ -471,6 +474,80 @@ void DebugWindow::serial_gui()
         if(ImGui::Button("Clear"))
         {
             serial_data.clear();
+        }
+    }
+}
+inline void decode_tile_line(const u8 data[2], u8 dst_color[32])
+{
+    for(i32 b = 7; b >= 0; --b)
+    {
+        u8 lo = (!!(data[0] & (1 << b)));
+        u8 hi = (!!(data[1] & (1 << b))) << 1;
+        u8 color = hi | lo;
+        // convert color.
+        switch(color)
+        {
+            case 0: color = 0xFF; break;
+            case 1: color = 0xAA; break;
+            case 2: color = 0x55; break;
+            case 3: color = 0x00; break;
+            default: lupanic(); break;
+        }
+        dst_color[(7 - b) * 4] = color;
+        dst_color[(7 - b) * 4 + 1] = color;
+        dst_color[(7 - b) * 4 + 2] = color;
+        dst_color[(7 - b) * 4 + 3] = 0xFF;
+    }
+}
+void DebugWindow::tiles_gui()
+{
+    if(g_app->emulator)
+    {
+        if(ImGui::CollapsingHeader("Tiles"))
+        {
+            u32 width = 16 * 8;
+            u32 height = 24 * 8;
+            // Create texture if not present.
+            if(!tile_texture)
+            {
+                auto tex = g_app->rhi_device->new_texture(RHI::MemoryType::local, 
+                        RHI::TextureDesc::tex2d(RHI::Format::rgba8_unorm, RHI::TextureUsageFlag::copy_dest | RHI::TextureUsageFlag::read_texture,
+                            width, height, 1, 1));
+                if(failed(tex))
+                {
+                    log_error("LunaGB", "Failed to create texture for tile inspector : %s", explain(tex.errcode()));
+                    return;
+                }
+                tile_texture = tex.get();
+            }
+            // Update texture data.
+            usize num_pixel_bytes = width * height * 4;
+            usize row_pitch = width * 4;
+            Blob pixel_bytes(num_pixel_bytes);
+            u8* pixels = pixel_bytes.data();
+            for(u32 y = 0; y < height / 8; ++y)
+            {
+                for(u32 x = 0; x < width / 8; ++x)
+                {
+                    u32 tile_index = y * width / 8 + x;
+                    usize tile_color_begin = y * row_pitch * 8 + x * 8 * 4;
+                    for(u32 line = 0; line < 8; ++line)
+                    {
+                        decode_tile_line(g_app->emulator->vram + tile_index * 16 + line * 2, pixels + tile_color_begin + line * row_pitch);
+                    }
+                }
+            }
+            auto r = RHI::copy_resource_data(g_app->cmdbuf, {
+                RHI::CopyResourceData::write_texture(tile_texture, {0, 0}, 0, 0, 0, pixels, row_pitch, num_pixel_bytes, width, height, 1)
+            });
+            if(failed(r))
+            {
+                log_error("LunaGB", "Failed to upload texture data for tile inspector : %s", explain(r.errcode()));
+                ImGui::End();
+                return;
+            }
+            // Draw.
+            ImGui::Image(tile_texture, {(f32)(width * 4), (f32)(height * 4)});
         }
     }
 }
