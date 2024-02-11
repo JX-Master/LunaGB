@@ -47,6 +47,12 @@ struct PPU
     //! The number of cycles used for this scan line.
     u32 line_cycles;
 
+    //! Contains the pixel data that should be displayed in the application.
+    //! Every pixel of the data is represented by four bytes, arranged in RGBA order.
+    //! We use double buffer to prevent tearing when presenting frames.
+    u8 pixels[PPU_XRES * PPU_YRES * 4 * 2];
+    u8 current_back_buffer;
+
     bool enabled() const { return bit_test(&lcdc, 7); }
 
     PPUMode get_mode() const { return (PPUMode)(lcds & 0x03); }

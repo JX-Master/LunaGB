@@ -34,6 +34,8 @@ void PPU::init()
     set_mode(PPUMode::oam_scan);
 
     line_cycles = 0;
+    memzero(pixels, sizeof(pixels));
+    current_back_buffer = 0;
 }
 void PPU::tick(Emulator* emu)
 {

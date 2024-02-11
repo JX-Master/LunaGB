@@ -31,10 +31,22 @@ struct App
     //! The debug window context.
     DebugWindow debug_window;
 
+    //! Render resources.
+    Ref<RHI::ITexture> emulator_display_tex;
+    Ref<RHI::IBuffer> emulator_display_ub;
+    Ref<RHI::IBuffer> emulator_display_vb;
+    Ref<RHI::IBuffer> emulator_display_ib;
+    Ref<RHI::IDescriptorSetLayout> emulator_display_dlayout;
+    Ref<RHI::IDescriptorSet> emulator_display_desc_set;
+    Ref<RHI::IPipelineLayout> emulator_display_playout;
+    Ref<RHI::IPipelineState> emulator_display_pso;
+
     RV init();
+    RV init_render_resources();
     RV update();
     ~App();
 
+    RV draw_emulator_screen(RHI::ITexture* back_buffer);
     void draw_gui();
     void draw_main_menu_bar();
 
