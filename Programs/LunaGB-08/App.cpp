@@ -229,10 +229,6 @@ RV App::update()
     lucatchret;
     return ok;
 }
-App::~App()
-{
-    // TODO...
-}
 RV App::draw_emulator_screen(RHI::ITexture* back_buffer)
 {
     lutry
