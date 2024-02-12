@@ -3,6 +3,11 @@
 
 void PPU::increase_ly(Emulator* emu)
 {
+    if(window_visible() && ly >= wy && 
+       (u16)ly < (u16)(wy + PPU_YRES))
+    {
+        ++window_line;
+    }
     ++ly;
     if(ly == lyc)
     {
@@ -24,6 +29,7 @@ void PPU::init()
     scroll_y = 0;
     scroll_x = 0;
     ly = 0;
+    window_line = 0;
     lyc = 0;
     dma = 0;
     bgp = 0xFC;
@@ -69,6 +75,7 @@ void PPU::bus_write(u16 addr, u8 data)
         lcds &= 0x7C;
         // Reset LY.
         ly = 0;
+        window_line = 0;
         line_cycles = 0;
     }
     if(addr == 0xFF41) // the lower 3 bits are read only.
@@ -84,6 +91,7 @@ void PPU::tick_oam_scan(Emulator* emu)
     if(line_cycles >= 80)
     {
         set_mode(PPUMode::drawing);
+        fetch_window = false;
         fetch_state = PPUFetchState::tile;
         fetch_x = 0;
         push_x = 0;
@@ -159,6 +167,7 @@ void PPU::tick_vblank(Emulator* emu)
             // move to next frame.
             set_mode(PPUMode::oam_scan);
             ly = 0;
+            window_line = 0;
             if(oam_int_enabled())
             {
                 emu->int_flags |= INT_LCD_STAT;
@@ -171,30 +180,57 @@ void PPU::fetcher_get_tile(Emulator* emu)
 {
     if(bg_window_enable())
     {
-        // The y position of the next pixel to fetch relative to 256x256 tile map origin.
-        u8 map_y = ly + scroll_y;
-        // The x position of the next pixel to fetch relative to 256x256 tile map origin.
-        u8 map_x = fetch_x + scroll_x;
-        // The address to read map index.
-        // ((map_y / 8) * 32) : 32 bytes per row in tile maps.
-        u16 addr = bg_map_area() + (map_x / 8) + ((map_y / 8) * 32);
-        // Read tile index.
-        u8 tile_index = emu->bus_read(addr);
-        if(bgw_data_area() == 0x8800)
+        if(fetch_window)
         {
-            // If LCDC.4=0, then range 0x9000~0x97FF is mapped to [0, 127], and range 0x8800~0x8FFF is mapped to [128, 255].
-            // We can achieve this by simply add 128 to the fetched data, which will overflow and reset the value if greater 
-            // than 127.
-            tile_index += 128;
+            // Fetch window pixels.
+            u8 window_x = (fetch_x + 7 - wx);
+            u8 window_y = window_line;
+            u16 window_addr = window_map_area() + (window_x / 8) + ((window_y / 8) * 32);
+            u8 tile_index = emu->bus_read(window_addr);
+            if(bgw_data_area() == 0x8800)
+            {
+                // If LCDC.4=0, then range 0x9000~0x97FF is mapped to [0, 127], and range 0x8800~0x8FFF is mapped to [128, 255].
+                // We can achieve this by simply add 128 to the fetched data, which will overflow and reset the value if greater 
+                // than 127.
+                tile_index += 128;
+            }
+            // Calculate data address offset from bgw data area beginning.
+            // tile_index * 16 : every tile takes 16 bytes.
+            // (window_tile_y % 8) * 2 : every row takes 2 bytes.
+            bgw_data_addr_offset = ((u16)tile_index * 16) + (u16)(window_y % 8) * 2;
+            // Calculate tile X position.
+            i32 tile_x = (i32)(fetch_x) - ((i32)(wx) - 7);
+            tile_x = (tile_x / 8) * 8 + (i32)(wx) - 7;
+            tile_x_begin = (i16)tile_x;
         }
-        // Calculate data address offset from bgw data area beginning.
-        // tile_index * 16 : every tile takes 16 bytes.
-        // (map_y % 8) * 2 : every row takes 2 bytes.
-        bgw_data_addr_offset = ((u16)tile_index * 16) + (u16)(map_y % 8) * 2;
-        // Calculate tile X position.
-        i32 tile_x = (i32)(fetch_x) + (i32)(scroll_x);
-        tile_x = (tile_x / 8) * 8 - (i32)scroll_x;
-        tile_x_begin = (i16)tile_x;
+        else
+        {
+            // Fetch map pixels.
+            // The y position of the next pixel to fetch relative to 256x256 tile map origin.
+            u8 map_y = ly + scroll_y;
+            // The x position of the next pixel to fetch relative to 256x256 tile map origin.
+            u8 map_x = fetch_x + scroll_x;
+            // The address to read map index.
+            // ((map_y / 8) * 32) : 32 bytes per row in tile maps.
+            u16 addr = bg_map_area() + (map_x / 8) + ((map_y / 8) * 32);
+            // Read tile index.
+            u8 tile_index = emu->bus_read(addr);
+            if(bgw_data_area() == 0x8800)
+            {
+                // If LCDC.4=0, then range 0x9000~0x97FF is mapped to [0, 127], and range 0x8800~0x8FFF is mapped to [128, 255].
+                // We can achieve this by simply add 128 to the fetched data, which will overflow and reset the value if greater 
+                // than 127.
+                tile_index += 128;
+            }
+            // Calculate data address offset from bgw data area beginning.
+            // tile_index * 16 : every tile takes 16 bytes.
+            // (map_y % 8) * 2 : every row takes 2 bytes.
+            bgw_data_addr_offset = ((u16)tile_index * 16) + (u16)(map_y % 8) * 2;
+            // Calculate tile X position.
+            i32 tile_x = (i32)(fetch_x) + (i32)(scroll_x);
+            tile_x = (tile_x / 8) * 8 - (i32)scroll_x;
+            tile_x_begin = (i16)tile_x;
+        }
     }
     fetch_state = PPUFetchState::data0;
     fetch_x += 8;
@@ -228,6 +264,13 @@ void PPU::fetcher_push_pixels()
                 if(tile_x_begin + (i32)i < 0)
                 {
                     continue;
+                }
+                // If this is a window pixel, we reset fetcher to fetch window and discard remaining pixels.
+                if(!fetch_window && is_pixel_window(push_x, ly))
+                {
+                    fetch_window = true;
+                    fetch_x = push_x;
+                    break;
                 }
                 // Now we can stream pixel.
                 BGWPixel pixel;

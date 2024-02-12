@@ -64,6 +64,11 @@ struct PPU
     //! The FIFO queue for background/window pixels.
     //! Pixels are arranged in RGBA order, R in bit 0...8, A in bit 24...32.
     RingDeque<BGWPixel> bgw_queue;
+    //! true when we are fetching window tiles.
+    //! false when we are fetching background tiles.
+    bool fetch_window;
+    //! The window line counter.
+    u8 window_line;
     //! The current fetch state.
     PPUFetchState fetch_state;
     //! The X position of the next pixel to fetch in screen coordinates.
@@ -102,6 +107,7 @@ struct PPU
     bool enabled() const { return bit_test(&lcdc, 7); }
     
     bool bg_window_enable() const { return bit_test(&lcdc, 0); };
+    bool window_enable() const { return bit_test(&lcdc, 5); }
 
     PPUMode get_mode() const { return (PPUMode)(lcds & 0x03); }
     void set_mode(PPUMode mode)
@@ -120,9 +126,21 @@ struct PPU
     {
         return bit_test(&lcdc, 3) ? 0x9C00 : 0x9800;
     }
+    u16 window_map_area() const
+    {
+        return bit_test(&lcdc, 6) ? 0x9C00 : 0x9800;
+    }
     u32 bgw_data_area() const
     {
         return bit_test(&lcdc, 4) ? 0x8000 : 0x8800;
+    }
+    bool window_visible() const
+    {
+        return window_enable() && wx <= 166 && wy < PPU_YRES;
+    }
+    bool is_pixel_window(u8 screen_x, u8 screen_y) const
+    {
+        return window_visible() && (screen_x + 7 >= wx) && (screen_y >= wy);
     }
 
     void increase_ly(Emulator* emu);
