@@ -13,6 +13,7 @@ void DebugWindow::gui()
         cpu_gui();
         serial_gui();
         tiles_gui();
+        ppu_gui();
     }
     ImGui::End();
 }
@@ -548,6 +549,44 @@ void DebugWindow::tiles_gui()
             }
             // Draw.
             ImGui::Image(tile_texture, {(f32)(width * 4), (f32)(height * 4)});
+        }
+    }
+}
+void DebugWindow::ppu_gui()
+{
+    if (g_app->emulator)
+    {
+        if (ImGui::CollapsingHeader("PPU"))
+        {
+            ImGui::Text("PPU: %s", g_app->emulator->ppu.enabled() ? "Enabled" : "Disabled");
+            ImGui::Text("BG & Window: %s", g_app->emulator->ppu.bg_window_enable() ? "Enabled" : "Disabled");
+            //ImGui::Text("Window: %s", g_app->emulator->ppu.window_enable() ? "Enabled" : "Disabled");
+            //ImGui::Text("OBJ: %s", g_app->emulator->ppu.obj_enable() ? "Enabled" : "Disabled");
+            ImGui::Text("ScrollX: %u, ScrollY: %u", (u32)g_app->emulator->ppu.scroll_x, (u32)g_app->emulator->ppu.scroll_y);
+            ImGui::Text("WindowX + 7: %u, WindowY: %u", (u32)g_app->emulator->ppu.wx, (u32)g_app->emulator->ppu.wy);
+            ImGui::Text("HBlank Int: %s", g_app->emulator->ppu.hblank_int_enabled() ? "Enabled" : "Disabled");
+            ImGui::Text("VBlank Int: %s", g_app->emulator->ppu.vblank_int_enabled() ? "Enabled" : "Disabled");
+            ImGui::Text("OAM Int: %s", g_app->emulator->ppu.oam_int_enabled() ? "Enabled" : "Disabled");
+            ImGui::Text("LYC Int: %s", g_app->emulator->ppu.lyc_int_enabled() ? "Enabled" : "Disabled");
+            ImGui::Text("PPU states change very fast, please slow down clock speed to debug.");
+            PPUMode mode = g_app->emulator->ppu.get_mode();
+            switch (mode)
+            {
+            case PPUMode::hblank:
+                ImGui::Text("Mode: HBLANK (0)");
+                break;
+            case PPUMode::vblank:
+                ImGui::Text("Mode: VBLANK (1)");
+                break;
+            case PPUMode::oam_scan:
+                ImGui::Text("Mode: OAM_SCAN (2)");
+                break;
+            case PPUMode::drawing:
+                ImGui::Text("Mode: DRAWING (3)");
+                break;
+            }
+            ImGui::Text("LY: %u", (u32)g_app->emulator->ppu.ly);
+            ImGui::Text("LY Compare: %u", (u32)g_app->emulator->ppu.lyc);
         }
     }
 }

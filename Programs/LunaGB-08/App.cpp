@@ -7,6 +7,7 @@
 #include <Luna/Runtime/Time.hpp>
 #include <Luna/ShaderCompiler/ShaderCompiler.hpp>
 #include <Luna/RHI/ShaderCompileHelper.hpp>
+#include <Luna/RHI/Utility.hpp>
 
 RV App::init()
 {
@@ -206,6 +207,15 @@ RV App::update()
         // Draw GUI.
         draw_gui();
 
+        // Upload emulator screen pixels.
+        if(emulator)
+        {
+            u8* src = emulator->ppu.pixels + ((emulator->ppu.current_back_buffer + 1) % 2) * PPU_XRES * PPU_YRES * 4;
+            // Copy display data to texture for rendering.
+            luexp(RHI::copy_resource_data(g_app->cmdbuf, {
+                RHI::CopyResourceData::write_texture(emulator_display_tex, {0, 0}, 0, 0, 0, src, PPU_XRES * 4, PPU_XRES * PPU_YRES * 4, PPU_XRES, PPU_YRES, 1)
+            }));
+        }
         // Clear back buffer.
         lulet(back_buffer, swap_chain->get_current_back_buffer());
         Float4U clear_color = { 0.3f, 0.3f, 0.3f, 1.3f };
