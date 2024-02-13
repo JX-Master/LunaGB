@@ -247,7 +247,7 @@ void PPU::fetcher_get_data(Emulator* emu, u8 data_index)
 void PPU::fetcher_push_pixels()
 {
     bool pushed = false;
-    if(bgw_queue.size() <= 8)
+    if(bgw_queue.size() < 8)
     {
         // Push BGW pixels.
         {
@@ -312,8 +312,8 @@ inline u8 apply_palette(u8 color, u8 palette)
 }
 void PPU::lcd_draw_pixel()
 {
-    // The LCD driver is drived by BGW queue only, it works when at least 9 pixels are in BGW queue.
-    if(bgw_queue.size() > 8) 
+    // The LCD driver is drived by BGW queue only, it works when at least 8 pixels are in BGW queue.
+    if(bgw_queue.size() >= 8) 
     {
         BGWPixel bgw_pixel = bgw_queue.front();
         bgw_queue.pop_front();
