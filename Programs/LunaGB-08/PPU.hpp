@@ -52,7 +52,7 @@ struct PPU
     u8 obp0;
     //! 0xFF49 - OBP1 (OBJ1 palette data).
     u8 obp1;
-    //! 0xFF4A - WY (Window Y position plus 7).
+    //! 0xFF4A - WY (Window Y position).
     u8 wy;
     //! 0xFF4B - WX (Window X position plus 7).
     u8 wx;
