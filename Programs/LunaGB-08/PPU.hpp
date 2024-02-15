@@ -155,6 +155,10 @@ struct PPU
     void tick_hblank(Emulator* emu);
     void tick_vblank(Emulator* emu);
 
+    void fetcher_get_background_tile(Emulator* emu);
+    void fetcher_get_window_tile(Emulator* emu);
+    void fetcher_push_bgw_pixels();
+
     void fetcher_get_tile(Emulator* emu);
     void fetcher_get_data(Emulator* emu, u8 data_index);
     void fetcher_push_pixels();

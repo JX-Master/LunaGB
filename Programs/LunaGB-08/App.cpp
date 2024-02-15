@@ -54,7 +54,6 @@ struct EmulatorDisplayUB
 {
     Float4x4U projection_matrix;
 };
-
 struct EmulatorDisplayVertex
 {
     Float2U pos;

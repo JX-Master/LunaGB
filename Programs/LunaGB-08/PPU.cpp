@@ -176,60 +176,108 @@ void PPU::tick_vblank(Emulator* emu)
         line_cycles = 0;
     }
 }
+void PPU::fetcher_get_background_tile(Emulator* emu)
+{
+    // The y position of the next pixel to fetch relative to 256x256 tile map origin.
+    u8 map_y = ly + scroll_y;
+    // The x position of the next pixel to fetch relative to 256x256 tile map origin.
+    u8 map_x = fetch_x + scroll_x;
+    // The address to read map index.
+    // ((map_y / 8) * 32) : 32 bytes per row in tile maps.
+    u16 addr = bg_map_area() + (map_x / 8) + ((map_y / 8) * 32);
+    // Read tile index.
+    u8 tile_index = emu->bus_read(addr);
+    if(bgw_data_area() == 0x8800)
+    {
+        // If LCDC.4=0, then range 0x9000~0x97FF is mapped to [0, 127], and range 0x8800~0x8FFF is mapped to [128, 255].
+        // We can achieve this by simply add 128 to the fetched data, which will overflow and reset the value if greater 
+        // than 127.
+        tile_index += 128;
+    }
+    // Calculate data address offset from bgw data area beginning.
+    // tile_index * 16 : every tile takes 16 bytes.
+    // (map_y % 8) * 2 : every row takes 2 bytes.
+    bgw_data_addr_offset = ((u16)tile_index * 16) + (u16)(map_y % 8) * 2;
+    // Calculate tile X position.
+    i32 tile_x = (i32)(fetch_x) + (i32)(scroll_x);
+    tile_x = (tile_x / 8) * 8 - (i32)scroll_x;
+    tile_x_begin = (i16)tile_x;
+}
+void PPU::fetcher_get_window_tile(Emulator* emu)
+{
+    u8 window_x = (fetch_x + 7 - wx);
+    u8 window_y = window_line;
+    u16 window_addr = window_map_area() + (window_x / 8) + ((window_y / 8) * 32);
+    u8 tile_index = emu->bus_read(window_addr);
+    if(bgw_data_area() == 0x8800)
+    {
+        // If LCDC.4=0, then range 0x9000~0x97FF is mapped to [0, 127], and range 0x8800~0x8FFF is mapped to [128, 255].
+        // We can achieve this by simply add 128 to the fetched data, which will overflow and reset the value if greater 
+        // than 127.
+        tile_index += 128;
+    }
+    // Calculate data address offset from bgw data area beginning.
+    // tile_index * 16 : every tile takes 16 bytes.
+    // (window_tile_y % 8) * 2 : every row takes 2 bytes.
+    bgw_data_addr_offset = ((u16)tile_index * 16) + (u16)(window_y % 8) * 2;
+    // Calculate tile X position.
+    i32 tile_x = (i32)(fetch_x) - ((i32)(wx) - 7);
+    tile_x = (tile_x / 8) * 8 + (i32)(wx) - 7;
+    tile_x_begin = (i16)tile_x;
+}
+void PPU::fetcher_push_bgw_pixels()
+{
+    // Load tile data.
+    u8 b1 = bgw_fetched_data[0];
+    u8 b2 = bgw_fetched_data[1];
+    // Process every pixel in this tile.
+    for(u32 i = 0; i < 8; ++i)
+    {
+        // Skip pixels not in the screen.
+        // Pushing pixels when tile_x_begin + i >= PPU_XRES is ok and 
+        // they will not be drawn by the LCD driver, and all undrawn pixels
+        // will be discarded when HBLANK mode is entered.
+        if(tile_x_begin + (i32)i < 0)
+        {
+            continue;
+        }
+        // If this is a window pixel, we reset fetcher to fetch window and discard remaining pixels.
+        if(!fetch_window && is_pixel_window(push_x, ly))
+        {
+            fetch_window = true;
+            fetch_x = push_x;
+            break;
+        }
+        // Now we can stream pixel.
+        BGWPixel pixel;
+        if(bg_window_enable())
+        {
+            u8 b = 7 - i;
+            u8 lo = (!!(b1 & (1 << b)));
+            u8 hi = (!!(b2 & (1 << b))) << 1;
+            pixel.color = hi | lo;
+            pixel.palette = bgp;
+        }
+        else
+        {
+            pixel.color = 0;
+            pixel.palette = 0;
+        }
+        bgw_queue.push_back(pixel);
+        ++push_x;
+    }
+}
 void PPU::fetcher_get_tile(Emulator* emu)
 {
     if(bg_window_enable())
     {
         if(fetch_window)
         {
-            // Fetch window pixels.
-            u8 window_x = (fetch_x + 7 - wx);
-            u8 window_y = window_line;
-            u16 window_addr = window_map_area() + (window_x / 8) + ((window_y / 8) * 32);
-            u8 tile_index = emu->bus_read(window_addr);
-            if(bgw_data_area() == 0x8800)
-            {
-                // If LCDC.4=0, then range 0x9000~0x97FF is mapped to [0, 127], and range 0x8800~0x8FFF is mapped to [128, 255].
-                // We can achieve this by simply add 128 to the fetched data, which will overflow and reset the value if greater 
-                // than 127.
-                tile_index += 128;
-            }
-            // Calculate data address offset from bgw data area beginning.
-            // tile_index * 16 : every tile takes 16 bytes.
-            // (window_tile_y % 8) * 2 : every row takes 2 bytes.
-            bgw_data_addr_offset = ((u16)tile_index * 16) + (u16)(window_y % 8) * 2;
-            // Calculate tile X position.
-            i32 tile_x = (i32)(fetch_x) - ((i32)(wx) - 7);
-            tile_x = (tile_x / 8) * 8 + (i32)(wx) - 7;
-            tile_x_begin = (i16)tile_x;
+            fetcher_get_window_tile(emu);
         }
         else
         {
-            // Fetch map pixels.
-            // The y position of the next pixel to fetch relative to 256x256 tile map origin.
-            u8 map_y = ly + scroll_y;
-            // The x position of the next pixel to fetch relative to 256x256 tile map origin.
-            u8 map_x = fetch_x + scroll_x;
-            // The address to read map index.
-            // ((map_y / 8) * 32) : 32 bytes per row in tile maps.
-            u16 addr = bg_map_area() + (map_x / 8) + ((map_y / 8) * 32);
-            // Read tile index.
-            u8 tile_index = emu->bus_read(addr);
-            if(bgw_data_area() == 0x8800)
-            {
-                // If LCDC.4=0, then range 0x9000~0x97FF is mapped to [0, 127], and range 0x8800~0x8FFF is mapped to [128, 255].
-                // We can achieve this by simply add 128 to the fetched data, which will overflow and reset the value if greater 
-                // than 127.
-                tile_index += 128;
-            }
-            // Calculate data address offset from bgw data area beginning.
-            // tile_index * 16 : every tile takes 16 bytes.
-            // (map_y % 8) * 2 : every row takes 2 bytes.
-            bgw_data_addr_offset = ((u16)tile_index * 16) + (u16)(map_y % 8) * 2;
-            // Calculate tile X position.
-            i32 tile_x = (i32)(fetch_x) + (i32)(scroll_x);
-            tile_x = (tile_x / 8) * 8 - (i32)scroll_x;
-            tile_x_begin = (i16)tile_x;
+            fetcher_get_background_tile(emu);
         }
     }
     fetch_state = PPUFetchState::data0;
@@ -249,48 +297,7 @@ void PPU::fetcher_push_pixels()
     bool pushed = false;
     if(bgw_queue.size() < 8)
     {
-        // Push BGW pixels.
-        {
-            // Load tile data.
-            u8 b1 = bgw_fetched_data[0];
-            u8 b2 = bgw_fetched_data[1];
-            // Process every pixel in this tile.
-            for(u32 i = 0; i < 8; ++i)
-            {
-                // Skip pixels not in the screen.
-                // Pushing pixels when tile_x_begin + i >= PPU_XRES is ok and 
-                // they will not be drawn by the LCD driver, and all undrawn pixels
-                // will be discarded when HBLANK mode is entered.
-                if(tile_x_begin + (i32)i < 0)
-                {
-                    continue;
-                }
-                // If this is a window pixel, we reset fetcher to fetch window and discard remaining pixels.
-                if(!fetch_window && is_pixel_window(push_x, ly))
-                {
-                    fetch_window = true;
-                    fetch_x = push_x;
-                    break;
-                }
-                // Now we can stream pixel.
-                BGWPixel pixel;
-                if(bg_window_enable())
-                {
-                    u8 b = 7 - i;
-                    u8 lo = (!!(b1 & (1 << b)));
-                    u8 hi = (!!(b2 & (1 << b))) << 1;
-                    pixel.color = hi | lo;
-                    pixel.palette = bgp;
-                }
-                else
-                {
-                    pixel.color = 0;
-                    pixel.palette = 0;
-                }
-                bgw_queue.push_back(pixel);
-                ++push_x;
-            }
-        }
+        fetcher_push_bgw_pixels();
         pushed = true;
     }
     if(pushed)
