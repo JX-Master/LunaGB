@@ -62,7 +62,6 @@ struct PPU
     //! The number of cycles used for this scan line.
     u32 line_cycles;
     //! The FIFO queue for background/window pixels.
-    //! Pixels are arranged in RGBA order, R in bit 0...8, A in bit 24...32.
     RingDeque<BGWPixel> bgw_queue;
     //! true when we are fetching window tiles.
     //! false when we are fetching background tiles.

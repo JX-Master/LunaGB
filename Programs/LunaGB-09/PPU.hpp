@@ -1,5 +1,6 @@
 #pragma once
 #include <Luna/Runtime/RingDeque.hpp>
+#include <Luna/Runtime/Vector.hpp>
 
 using namespace Luna;
 
@@ -18,6 +19,25 @@ enum class PPUFetchState : u8
     idle,
     push
 };
+struct OAMEntry
+{
+    //! The Y position of the sprite plus 16.
+    u8 y;
+    //! The X position of the sprite plus 8.
+    u8 x;
+    //! The tile index that stores the sprite.
+    u8 tile;
+    //! Attribute flags.
+    u8 flags;
+
+    u8 cgb_palette() const { return flags & 0x07; }
+    u8 cgb_bank() const { return (flags >> 3) & 0x01; }
+    //! 0 : OBP0, 1 : OBP1.
+    u8 dmg_palette() const { return (flags >> 4) & 0x01; }
+    bool x_flip() const { return bit_test(&flags, 5); }
+    bool y_flip() const { return bit_test(&flags, 6); }
+    bool priority() const { return bit_test(&flags, 7); }
+};
 struct BGWPixel
 {
     //! The color index.
@@ -25,6 +45,17 @@ struct BGWPixel
     //! The palette used for this pixel.
     u8 palette;
 };
+struct ObjectPixel
+{
+    //! The color index.
+    u8 color;
+    //! The palette used for this pixel.
+    u8 palette;
+    //! Holds flag 7 of the OAM entry.
+    bool bg_priority;
+};
+static_assert(sizeof(OAMEntry) == 4, "Wrong OAM entry size");
+
 constexpr u32 PPU_LINES_PER_FRAME = 154;
 constexpr u32 PPU_CYCLES_PER_LINE = 456;
 constexpr u32 PPU_YRES = 144;
@@ -66,8 +97,9 @@ struct PPU
     //! The number of cycles used for this scan line.
     u32 line_cycles;
     //! The FIFO queue for background/window pixels.
-    //! Pixels are arranged in RGBA order, R in bit 0...8, A in bit 24...32.
     RingDeque<BGWPixel> bgw_queue;
+    //! The FIFO queue for objects (sprites).
+    RingDeque<ObjectPixel> obj_queue;
     //! true when we are fetching window tiles.
     //! false when we are fetching background tiles.
     bool fetch_window;
@@ -84,8 +116,15 @@ struct PPU
     //! The x position of the first pixel in fetched tile, in screen coordinates.
     //! May be negative if scroll_x is not times of 8.
     i16 tile_x_begin;
+    //! The loaded sprite data during OAM scan stage, sorted by their X position.
+    Vector<OAMEntry> sprites;
+    //! The sprites used in the current fetch.
+    OAMEntry fetched_sprites[3];
+    u8 num_fetched_sprites;
     //! The fetched background/window data in PPUFetchState::data0 and PPUFetchState::data1 step.
     u8 bgw_fetched_data[2];
+    //! The fetched sprite data in LCDFetchState::data0 and LCDFetchState::data1 step.
+    u8 sprite_fetched_data[6];
     //! The X position of the next pixel to push to the bgw FIFO.
     u8 push_x;
     //! The X position of the next pixel to draw to the back buffer in screen coordinates.
@@ -111,6 +150,7 @@ struct PPU
     bool enabled() const { return bit_test(&lcdc, 7); }
     
     bool bg_window_enable() const { return bit_test(&lcdc, 0); };
+    bool obj_enable() const { return bit_test(&lcdc, 1); }
     bool window_enable() const { return bit_test(&lcdc, 5); }
 
     PPUMode get_mode() const { return (PPUMode)(lcds & 0x03); }
@@ -138,6 +178,10 @@ struct PPU
     {
         return bit_test(&lcdc, 4) ? 0x8000 : 0x8800;
     }
+    u8 obj_height() const
+    {
+        return bit_test(&lcdc, 2) ? 16 : 8;
+    }
     bool window_visible() const
     {
         return window_enable() && wx <= 166 && wy < PPU_YRES;
@@ -162,7 +206,10 @@ struct PPU
 
     void fetcher_get_background_tile(Emulator* emu);
     void fetcher_get_window_tile(Emulator* emu);
+    void fetcher_get_sprite_tile(Emulator* emu);
+    void fetcher_get_sprite_data(Emulator* emu, u8 data_index);
     void fetcher_push_bgw_pixels();
+    void fetcher_push_sprite_pixels(u8 push_begin, u8 push_end);
 
     void fetcher_get_tile(Emulator* emu);
     void fetcher_get_data(Emulator* emu, u8 data_index);
