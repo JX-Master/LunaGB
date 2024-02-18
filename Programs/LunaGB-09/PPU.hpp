@@ -59,6 +59,10 @@ struct PPU
 
     // PPU internal state.
 
+    bool dma_active;
+    u8 dma_offset;
+    u8 dma_start_delay;
+
     //! The number of cycles used for this scan line.
     u32 line_cycles;
     //! The FIFO queue for background/window pixels.
@@ -149,7 +153,8 @@ struct PPU
     void tick(Emulator* emu);
     u8 bus_read(u16 addr);
     void bus_write(u16 addr, u8 data);
-
+    
+    void tick_dma(Emulator* emu);
     void tick_oam_scan(Emulator* emu);
     void tick_drawing(Emulator* emu);
     void tick_hblank(Emulator* emu);

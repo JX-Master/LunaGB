@@ -32,6 +32,8 @@ RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
     cpu.init();
     memzero(wram, 8_kb);
     memzero(vram, 8_kb);
+    memzero(oam, 160);
+    memzero(hram, 128);
     int_flags = 0;
     int_enable_flags = 0;
     timer.init();
@@ -96,6 +98,10 @@ u8 Emulator::bus_read(u16 addr)
         // Working RAM.
         return wram[addr - 0xC000];
     }
+    if(addr >= 0xFE00 && addr <= 0xFE9F)
+    {
+        return oam[addr - 0xFE00];
+    }
     if(addr >= 0xFF01 && addr <= 0xFF02)
     {
         return serial.bus_read(addr);
@@ -150,6 +156,11 @@ void Emulator::bus_write(u16 addr, u8 data)
     {
         // Working RAM.
         wram[addr - 0xC000] = data;
+        return;
+    }
+    if(addr >= 0xFE00 && addr <= 0xFE9F)
+    {
+        oam[addr - 0xFE00] = data;
         return;
     }
     if(addr >= 0xFF01 && addr <= 0xFF02)

@@ -28,6 +28,7 @@ struct Emulator
 
     byte_t vram[8_kb];
     byte_t wram[8_kb];
+    byte_t oam[160];
     byte_t hram[128];
 
     //! 0xFF0F - The interruption flags.

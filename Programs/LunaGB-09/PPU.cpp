@@ -38,13 +38,19 @@ void PPU::init()
     wy = 0;
     wx = 0;
     set_mode(PPUMode::oam_scan);
-
+    dma_active = false;
+    dma_offset = 0;
+    dma_start_delay = 0;
     line_cycles = 0;
     memzero(pixels, sizeof(pixels));
     current_back_buffer = 0;
 }
 void PPU::tick(Emulator* emu)
 {
+    if((emu->clock_cycles % 4) == 0)
+    {
+        tick_dma(emu);
+    }
     if(!enabled()) return;
     ++line_cycles;
     switch(get_mode())
@@ -84,7 +90,26 @@ void PPU::bus_write(u16 addr, u8 data)
         return;
     }
     if(addr == 0xFF44) return; // read only.
+    if(addr == 0xFF46)
+    {
+        // Enable DMA transfer.
+        dma_active = true;
+        dma_offset = 0;
+        dma_start_delay = 1;
+    }
     ((u8*)(&lcdc))[addr - 0xFF40] = data;
+}
+void PPU::tick_dma(Emulator* emu)
+{
+    if(!dma_active) return;
+    if(dma_start_delay)
+    {
+        --dma_start_delay;
+        return;
+    }
+    emu->oam[dma_offset] = emu->bus_read((((u16)dma) * 0x100) + dma_offset);
+    ++dma_offset;
+    dma_active = dma_offset < 0xA0;
 }
 void PPU::tick_oam_scan(Emulator* emu)
 {
