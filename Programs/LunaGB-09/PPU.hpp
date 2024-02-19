@@ -30,8 +30,6 @@ struct OAMEntry
     //! Attribute flags.
     u8 flags;
 
-    u8 cgb_palette() const { return flags & 0x07; }
-    u8 cgb_bank() const { return (flags >> 3) & 0x01; }
     //! 0 : OBP0, 1 : OBP1.
     u8 dmg_palette() const { return (flags >> 4) & 0x01; }
     bool x_flip() const { return bit_test(&flags, 5); }
