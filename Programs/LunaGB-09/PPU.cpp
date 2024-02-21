@@ -477,6 +477,7 @@ void PPU::lcd_draw_pixel()
     // The LCD driver is drived by BGW queue only, it works when at least 8 pixels are in BGW queue.
     if(bgw_queue.size() >= 8) 
     {
+        if (draw_x >= PPU_XRES) return;
         BGWPixel bgw_pixel = bgw_queue.front();
         bgw_queue.pop_front();
         ObjectPixel obj_pixel = obj_queue.front();
