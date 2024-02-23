@@ -39,10 +39,12 @@ RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
     timer.init();
     serial.init();
     ppu.init();
+    joypad.init();
     return ok;
 }
 void Emulator::update(f64 delta_time)
 {
+    joypad.update(this);
     u64 frame_cycles = (u64)((f32)(4194304.0 * delta_time) * clock_speed_scale);
     u64 end_cycles = clock_cycles + frame_cycles;
     while(clock_cycles < end_cycles)
@@ -101,6 +103,10 @@ u8 Emulator::bus_read(u16 addr)
     if(addr >= 0xFE00 && addr <= 0xFE9F)
     {
         return oam[addr - 0xFE00];
+    }
+    if(addr == 0xFF00)
+    {
+        return joypad.bus_read();
     }
     if(addr >= 0xFF01 && addr <= 0xFF02)
     {
@@ -161,6 +167,11 @@ void Emulator::bus_write(u16 addr, u8 data)
     if(addr >= 0xFE00 && addr <= 0xFE9F)
     {
         oam[addr - 0xFE00] = data;
+        return;
+    }
+    if(addr == 0xFF00)
+    {
+        joypad.bus_write(data);
         return;
     }
     if(addr >= 0xFF01 && addr <= 0xFF02)

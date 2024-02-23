@@ -44,6 +44,7 @@ struct App
     RV init();
     RV init_render_resources();
     RV update();
+    void update_emulator_input();
 
     RV draw_emulator_screen(RHI::ITexture* back_buffer);
     void draw_gui();

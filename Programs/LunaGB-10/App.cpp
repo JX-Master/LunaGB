@@ -8,6 +8,8 @@
 #include <Luna/ShaderCompiler/ShaderCompiler.hpp>
 #include <Luna/RHI/ShaderCompileHelper.hpp>
 #include <Luna/RHI/Utility.hpp>
+#include <Luna/HID/Keyboard.hpp>
+#include <Luna/HID/Controller.hpp>
 
 RV App::init()
 {
@@ -200,6 +202,7 @@ RV App::update()
         delta_time = min(delta_time, 0.125);
         if(emulator)
         {
+            update_emulator_input();
             emulator->update(delta_time);
         }
         last_frame_ticks = ticks;
@@ -237,6 +240,40 @@ RV App::update()
     }
     lucatchret;
     return ok;
+}
+void App::update_emulator_input()
+{
+    auto& joypad = emulator->joypad;
+    if(window->is_focused())
+    {
+        joypad.up = HID::get_key_state(HID::KeyCode::w) || HID::get_key_state(HID::KeyCode::up);
+        joypad.left = HID::get_key_state(HID::KeyCode::a) || HID::get_key_state(HID::KeyCode::left);
+        joypad.down = HID::get_key_state(HID::KeyCode::s) || HID::get_key_state(HID::KeyCode::down);
+        joypad.right = HID::get_key_state(HID::KeyCode::d) || HID::get_key_state(HID::KeyCode::right);
+        joypad.a = HID::get_key_state(HID::KeyCode::j);
+        joypad.b = HID::get_key_state(HID::KeyCode::k);
+        joypad.select = HID::get_key_state(HID::KeyCode::spacebar);
+        joypad.start = HID::get_key_state(HID::KeyCode::enter);
+        if (HID::supports_controller())
+        {
+            auto gc_input = HID::get_controller_state(0);
+            if (gc_input.connected)
+            {
+                joypad.up = joypad.up || test_flags(gc_input.buttons, HID::ControllerButton::up) ;
+                joypad.up = joypad.up || (gc_input.axis_ly >= 0.5f);
+                joypad.left = joypad.left || test_flags(gc_input.buttons, HID::ControllerButton::left);
+                joypad.left = joypad.left || (gc_input.axis_lx <= -0.5f);
+                joypad.down = joypad.down || test_flags(gc_input.buttons, HID::ControllerButton::down);
+                joypad.down = joypad.down || (gc_input.axis_ly <= -0.5f);
+                joypad.right = joypad.right || test_flags(gc_input.buttons, HID::ControllerButton::right);
+                joypad.right = joypad.right || (gc_input.axis_lx >= 0.5f);
+                joypad.a = joypad.a || test_flags(gc_input.buttons, HID::ControllerButton::a);
+                joypad.b = joypad.b || test_flags(gc_input.buttons, HID::ControllerButton::b);
+                joypad.select = joypad.select || test_flags(gc_input.buttons, HID::ControllerButton::lspecial);
+                joypad.start = joypad.start || test_flags(gc_input.buttons, HID::ControllerButton::rspecial);
+            }
+        }
+    }
 }
 RV App::draw_emulator_screen(RHI::ITexture* back_buffer)
 {

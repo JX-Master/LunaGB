@@ -4,6 +4,7 @@
 #include "Timer.hpp"
 #include "Serial.hpp"
 #include "PPU.hpp"
+#include "Joypad.hpp"
 using namespace Luna;
 
 constexpr u8 INT_VBLANK = 1;
@@ -39,6 +40,7 @@ struct Emulator
     Timer timer;
     Serial serial;
     PPU ppu;
+    Joypad joypad;
 
     RV init(const void* cartridge_data, usize cartridge_data_size);
     void update(f64 delta_time);
