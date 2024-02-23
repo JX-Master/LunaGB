@@ -1,10 +1,12 @@
 #include "Emulator.hpp"
 #include "Cartridge.hpp"
 #include <Luna/Runtime/Log.hpp>
+#include <Luna/Runtime/File.hpp>
 
-RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
+RV Emulator::init(Path cartridge_path, const void* cartridge_data, usize cartridge_data_size)
 {
     luassert(cartridge_data && cartridge_data_size);
+    this->cartridge_path = cartridge_path;
     rom_data = (byte_t*)memalloc(cartridge_data_size);
     memcpy(rom_data, cartridge_data, cartridge_data_size);
     rom_data_size = cartridge_data_size;
@@ -19,6 +21,7 @@ RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
     {
         return set_error(BasicError::bad_data(), "The cartridge checksum dismatched. Expected: %u, computed: %u", (u32)header->checksum, (u32)checksum);
     }
+    num_rom_banks = (((usize)32) << header->rom_size) / 16;
     // Print cartridge load info.
     c8 title[16];
     snprintf(title, 16, "%s", header->title);
@@ -40,6 +43,23 @@ RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
     serial.init();
     ppu.init();
     joypad.init();
+    switch(header->ram_size)
+    {
+        case 2: cram_size = 8_kb; break;
+        case 3: cram_size = 32_kb; break;
+        case 4: cram_size = 128_kb; break;
+        case 5: cram_size = 64_kb; break;
+        default: break;
+    }
+    if(cram_size)
+    {
+        cram = (byte_t*)memalloc(cram_size);
+        memzero(cram, cram_size);
+        if(is_cart_battery(header->cartridge_type))
+        {
+            load_cartridge_ram_data();
+        }
+    }
     return ok;
 }
 void Emulator::update(f64 delta_time)
@@ -70,7 +90,18 @@ void Emulator::tick(u32 mcycles)
 }
 void Emulator::close()
 {
-    if(rom_data)
+    if(cram)
+    {
+        CartridgeHeader* header = get_cartridge_header(rom_data);
+        if(is_cart_battery(header->cartridge_type))
+        {
+            save_cartridge_ram_data();
+        }
+        memfree(cram);
+        cram = nullptr;
+        cram_size = 0;
+    }
+    if (rom_data)
     {
         memfree(rom_data);
         rom_data = nullptr;
@@ -209,4 +240,34 @@ void Emulator::bus_write(u16 addr, u8 data)
     }
     log_error("LunaGB", "Unsupported bus write address: 0x%04X", (u32)addr);
     return;
+}
+void Emulator::load_cartridge_ram_data()
+{
+    lutry
+    {
+        auto path = cartridge_path;
+        if (path.empty()) return;
+        path.replace_extension("sav");
+        lulet(f, open_file(path.encode().c_str(), FileOpenFlag::read, FileCreationMode::open_existing));
+        luexp(f->read(cram, cram_size));
+        log_info("LunaGB", "cartridge RAM data loaded: %s", path.encode().c_str());
+    }
+    lucatch {}
+    return;
+}
+void Emulator::save_cartridge_ram_data()
+{
+    lutry
+    {
+        if (cartridge_path.empty() || !cram) return;
+        Path path = cartridge_path;
+        path.replace_extension("sav");
+        lulet(f, open_file(path.encode().c_str(), FileOpenFlag::write, FileCreationMode::create_always));
+        luexp(f->write(cram, cram_size));
+        log_info("LunaGB", "Save cartridge RAM data to %s.", path.encode().c_str());
+    }
+    lucatch
+    {
+        log_error("LunaGB", "Failed to save cartridge RAM data. Game progress may lost!");
+    }
 }

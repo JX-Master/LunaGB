@@ -130,16 +130,209 @@ const c8* get_cartridge_lic_code_name(u8 lic_code)
     }
     return "UNKNOWN";
 }
+u8 mbc1_read(Emulator* emu, u16 addr)
+{
+    if(addr <= 0x3FFF)
+    {
+        if(emu->banking_mode && emu->num_rom_banks > 32)
+        {
+            usize bank_index = emu->ram_bank_number;
+            usize bank_offset = bank_index * 32 * 16_kb;
+            return emu->rom_data[bank_offset + addr];
+        }
+        else
+        {
+            return emu->rom_data[addr];
+        }
+    }
+    if(addr >= 0x4000 && addr <= 0x7FFF)
+    {
+        // Cartridge ROM bank 01-7F.
+        if(emu->banking_mode && emu->num_rom_banks > 32)
+        {
+            usize bank_index = emu->rom_bank_number + (emu->ram_bank_number << 5);
+            usize bank_offset = bank_index * 16_kb;
+            return emu->rom_data[bank_offset + (addr - 0x4000)];
+        }
+        else
+        {
+            usize bank_index = emu->rom_bank_number;
+            usize bank_offset = bank_index * 16_kb;
+            return emu->rom_data[bank_offset + (addr - 0x4000)];
+        }
+    }
+    if(addr >= 0xA000 && addr <= 0xBFFF)
+    {
+        if(emu->cram)
+        {
+            if(!emu->cram_enable) return 0xFF;
+            if(emu->num_rom_banks <= 32)
+            {
+                if(emu->banking_mode)
+                {
+                    // Advanced banking mode.
+                    usize bank_offset = emu->ram_bank_number * 8_kb;
+                    luassert(bank_offset + (addr - 0xA000) <= emu->cram_size);
+                    return emu->cram[bank_offset + (addr - 0xA000)];
+                }
+                else
+                {
+                    // Simple banking mode.
+                    return emu->cram[addr - 0xA000];
+                }
+            }
+            else
+            {
+                // ram_bank_number is used for switching ROM banks, use 1 ram page.
+                return emu->cram[addr - 0xA000];
+            }
+        }
+    }
+    log_error("LunaGB", "Unsupported bus read: %02X", (u32)addr);
+    return 0xFF;
+}
+void mbc1_write(Emulator* emu, u16 addr, u8 data)
+{
+    if(addr <= 0x1FFF)
+    {
+        // Enable/disable cartridge RAM.
+        if(emu->cram)
+        {
+            if((data & 0x0F) == 0x0A)
+            {
+                emu->cram_enable = true;
+            }
+            else
+            {
+                emu->cram_enable = false;
+            }
+            return;
+        }
+    }
+    if(addr >= 0x2000 && addr <= 0x3FFF)
+    {
+        // Set ROM bank number.
+        emu->rom_bank_number = data & 0x1F;
+        if(emu->rom_bank_number == 0)
+        {
+            emu->rom_bank_number = 1;
+        }
+        if(emu->num_rom_banks <= 2)
+        {
+            emu->rom_bank_number = emu->rom_bank_number & 0x01;
+        }
+        else if(emu->num_rom_banks <= 4)
+        {
+            emu->rom_bank_number = emu->rom_bank_number & 0x03;
+        }
+        else if(emu->num_rom_banks <= 8)
+        {
+            emu->rom_bank_number = emu->rom_bank_number & 0x07;
+        }
+        else if(emu->num_rom_banks <= 16)
+        {
+            emu->rom_bank_number = emu->rom_bank_number & 0x0F;
+        }
+        return;
+    }
+    if(addr >= 0x4000 && addr <= 0x5FFF)
+    {
+        // Set RAM bank number.
+        emu->ram_bank_number = data & 0x03;
+        // Discards unsupported banks.
+        if(emu->num_rom_banks > 32)
+        {
+            if(emu->num_rom_banks <= 64)
+            {
+                emu->ram_bank_number &= 0x01;
+            }
+        }
+        else
+        {
+            if(emu->cram_size <= 8_kb)
+            {
+                emu->ram_bank_number = 0;
+            }
+            else if(emu->cram_size <= 16_kb)
+            {
+                emu->ram_bank_number &= 0x01;
+            }
+        }
+        return;
+    }
+    if(addr >= 0x6000 && addr <= 0x7FFF)
+    {
+        // Set banking mode.
+        if(emu->num_rom_banks > 32 || emu->cram_size > 8_kb)
+        {
+            emu->banking_mode = data & 0x01;
+        }
+        return;
+    }
+    if(addr >= 0xA000 && addr <= 0xBFFF)
+    {
+        if(emu->cram)
+        {
+            if(!emu->cram_enable) return;
+            if(emu->num_rom_banks <= 32)
+            {
+                if(emu->banking_mode)
+                {
+                    // Advanced banking mode.
+                    usize bank_offset = emu->ram_bank_number * 8_kb;
+                    luassert(bank_offset + (addr - 0xA000) <= emu->cram_size);
+                    emu->cram[bank_offset + (addr - 0xA000)] = data;
+                }
+                else
+                {
+                    // Simple banking mode.
+                    emu->cram[addr - 0xA000] = data;
+                }
+            }
+            else
+            {
+                // ram_bank_number is used for switching ROM banks, use 1 ram page.
+                emu->cram[addr - 0xA000] = data;
+            }
+        }
+    }
+}
 u8 cartridge_read(Emulator* emu, u16 addr)
 {
-    if(addr <= 0x7FFF)
+    u8 cartridge_type = get_cartridge_header(emu->rom_data)->cartridge_type;
+    if(is_cart_mbc1(cartridge_type))
     {
-        return emu->rom_data[addr];
+        return mbc1_read(emu, addr);
+    }
+    else
+    {
+        if(addr <= 0x7FFF)
+        {
+            return emu->rom_data[addr];
+        }
+        if(addr >= 0xA000 && addr <= 0xBFFF && emu->cram)
+        {
+            return emu->cram[addr - 0xA000];
+        }
     }
     log_error("LunaGB", "Unsupported cartridge read address: 0x%04X", (u32)addr);
     return 0xFF;
 }
 void cartridge_write(Emulator* emu, u16 addr, u8 data)
 {
+    u8 cartridge_type = get_cartridge_header(emu->rom_data)->cartridge_type;
+    if(is_cart_mbc1(cartridge_type))
+    {
+        mbc1_write(emu, addr, data);
+        return;
+    }
+    else
+    {
+        if(addr >= 0xA000 && addr <= 0xBFFF && emu->cram)
+        {
+            emu->cram[addr - 0xA000] = data;
+            return;
+        }
+    }
     log_error("LunaGB", "Unsupported cartridge write address: 0x%04X", (u32)addr);
 }

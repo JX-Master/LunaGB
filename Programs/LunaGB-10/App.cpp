@@ -416,7 +416,7 @@ void App::open_cartridge()
             lulet(f, open_file(path.encode().c_str(), FileOpenFlag::read, FileCreationMode::open_existing));
             lulet(rom_data, load_file_data(f));
             UniquePtr<Emulator> emu(memnew<Emulator>());
-            luexp(emu->init(rom_data.data(), rom_data.size()));
+            luexp(emu->init(path, rom_data.data(), rom_data.size()));
             emulator = move(emu);
         }
     }
