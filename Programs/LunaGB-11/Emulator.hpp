@@ -29,9 +29,9 @@ struct Emulator
 
     //! The number of ROM banks. 16KB per bank.
     usize num_rom_banks = 0;
-    //! MBC1: The cartridge RAM is enabled for reading / writing.
+    //! MBC1/MBC2: The cartridge RAM is enabled for reading / writing.
     bool cram_enable = false;
-    //! MBC1: The ROM bank number controlling which rom bank is mapped to 0x4000~0x7FFF.
+    //! MBC1/MBC2: The ROM bank number controlling which rom bank is mapped to 0x4000~0x7FFF.
     u8 rom_bank_number = 1;
     //! MBC1: The RAM bank number register controlling which ram bank is mapped to 0xA000~0xBFFF.
     //! If the cartridge ROM size is larger than 512KB (32 banks), this is used to control the 

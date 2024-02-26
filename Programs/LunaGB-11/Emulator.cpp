@@ -51,6 +51,11 @@ RV Emulator::init(Path cartridge_path, const void* cartridge_data, usize cartrid
         case 5: cram_size = 64_kb; break;
         default: break;
     }
+    if(is_cart_mbc2(header->cartridge_type))
+    {
+        // MBC2 cartridges have fixed 512x4 bits of RAM, which is not shown in header info.
+        cram_size = 512;
+    }
     if(cram_size)
     {
         cram = (byte_t*)memalloc(cram_size);
