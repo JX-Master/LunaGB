@@ -375,6 +375,142 @@ void mbc2_write(Emulator* emu, u16 addr, u8 data)
     }
     log_error("LunaGB", "Unsupported bus write: %02X", (u32)addr);
 }
+u8 mbc3_read(Emulator* emu, u16 addr)
+{
+    if(addr <= 0x3FFF)
+    {
+        return emu->rom_data[addr];
+    }
+    if(addr >= 0x4000 && addr <= 0x7FFF)
+    {
+        // Cartridge ROM bank 01-7F.
+        usize bank_index = emu->rom_bank_number;
+        usize bank_offset = bank_index * 16_kb;
+        return emu->rom_data[bank_offset + (addr - 0x4000)];
+    }
+    if(addr >= 0xA000 && addr <= 0xBFFF)
+    {
+        if(emu->ram_bank_number <= 0x03)
+        {
+            if(emu->cram)
+            {
+                if(!emu->cram_enable) return 0xFF;
+                usize bank_offset = emu->ram_bank_number * 8_kb;
+                luassert(bank_offset + (addr - 0xA000) <= emu->cram_size);
+                return emu->cram[bank_offset + (addr - 0xA000)];
+            }
+        }
+        if(is_cart_timer(get_cartridge_header(emu->rom_data)->cartridge_type) && 
+            emu->ram_bank_number >= 0x08 && emu->ram_bank_number <= 0x0C)
+        {
+            return ((u8*)(&emu->rtc.s))[emu->ram_bank_number - 0x08];
+        }
+    }
+    log_error("LunaGB", "Unsupported bus read: %02X", (u32)addr);
+    return 0xFF;
+}
+void mbc3_write(Emulator* emu, u16 addr, u8 data)
+{
+    if(addr <= 0x1FFF)
+    {
+        // Enable/disable cartridge RAM.
+        if(data == 0x0A)
+        {
+            emu->cram_enable = true;
+        }
+        else
+        {
+            emu->cram_enable = false;
+        }
+        return;
+    }
+    if(addr >= 0x2000 && addr <= 0x3FFF)
+    {
+        // Set ROM bank number.
+        emu->rom_bank_number = data & 0x7F;
+        if(emu->rom_bank_number == 0)
+        {
+            emu->rom_bank_number = 1;
+        }
+        return;
+    }
+    if(addr >= 0x4000 && addr <= 0x5FFF)
+    {
+        if(data <= 0x03)
+        {
+            // Set RAM bank number.
+            emu->ram_bank_number = data;
+            return;
+        }
+        if(data >= 0x08 && data <= 0x0C)
+        {
+            // Map RTC registers.
+            emu->ram_bank_number = data;
+            return;
+        }
+    }
+    if(addr >= 0x6000 && addr <= 0x7FFF)
+    {
+        if(data == 0x01 && emu->rtc.time_latching)
+        {
+            emu->rtc.latch();
+        }
+        if(data == 0x00)
+        {
+            emu->rtc.time_latching = true;
+        }
+        else
+        {
+            emu->rtc.time_latching = false;
+        }
+        return;
+    }
+    if(addr >= 0xA000 && addr <= 0xBFFF)
+    {
+        if(emu->ram_bank_number <= 0x03)
+        {
+            if(emu->cram)
+            {
+                if(!emu->cram_enable) return;
+                if(emu->num_rom_banks <= 32)
+                {
+                    if(emu->banking_mode)
+                    {
+                        // Advanced banking mode.
+                        usize bank_offset = emu->ram_bank_number * 8_kb;
+                        luassert(bank_offset + (addr - 0xA000) <= emu->cram_size);
+                        emu->cram[bank_offset + (addr - 0xA000)] = data;
+                    }
+                    else
+                    {
+                        // Simple banking mode.
+                        emu->cram[addr - 0xA000] = data;
+                    }
+                }
+                else
+                {
+                    // ram_bank_number is used for switching ROM banks, use 1 ram page.
+                    emu->cram[addr - 0xA000] = data;
+                }
+            }
+            return;
+        }
+        if(is_cart_timer(get_cartridge_header(emu->rom_data)->cartridge_type) && 
+            emu->ram_bank_number >= 0x08 && emu->ram_bank_number <= 0x0C)
+        {
+            if(emu->ram_bank_number == 0x0C &&
+                emu->rtc.halted() &&
+                !bit_test(&data, 6))
+            {
+                emu->rtc.resume();
+            }
+            ((u8*)(&emu->rtc.s))[emu->ram_bank_number - 0x08] = data;
+            emu->rtc.update_timestamp();
+            return;
+        }
+    }
+    log_error("LunaGB", "Unsupported bus write: %02X", (u32)addr);
+}
 u8 cartridge_read(Emulator* emu, u16 addr)
 {
     u8 cartridge_type = get_cartridge_header(emu->rom_data)->cartridge_type;
@@ -385,6 +521,10 @@ u8 cartridge_read(Emulator* emu, u16 addr)
     else if(is_cart_mbc2(cartridge_type))
     {
         return mbc2_read(emu, addr);
+    }
+    else if(is_cart_mbc3(cartridge_type))
+    {
+        return mbc3_read(emu, addr);
     }
     else
     {
@@ -411,6 +551,11 @@ void cartridge_write(Emulator* emu, u16 addr, u8 data)
     else if(is_cart_mbc2(cartridge_type))
     {
         mbc2_write(emu, addr, data);
+        return;
+    }
+    else if(is_cart_mbc3(cartridge_type))
+    {
+        mbc3_write(emu, addr, data);
         return;
     }
     else
