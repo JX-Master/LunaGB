@@ -11,18 +11,16 @@ struct RTC
     u8 dh;// Upper 1 bit of Day Counter, Carry Bit, Halt Flag.
 
     // Internal state.
-    u64 timestamp;
-    i64 last_timestamp;
+    f64 time;
     bool time_latched;
     // Set to `true` when writing 0x00 to 0x6000~0x7FFF.
     bool time_latching;
 
     void init();
-    void update();
+    void update(f64 delta_time);
     void update_time_registers();
     void update_timestamp();
     void latch();
-    void resume();
     u16 days() const { return (u16)dl + (((u16)(dh & 0x01)) << 8); }
     bool halted() const { return bit_test(&dh, 6); }
     bool day_overflow() const { return bit_test(&dh, 7); }

@@ -73,7 +73,7 @@ void Emulator::update(f64 delta_time)
     joypad.update(this);
     if(is_cart_timer(get_cartridge_header(rom_data)->cartridge_type))
     {
-        rtc.update();
+        rtc.update(delta_time);
     }
     u64 frame_cycles = (u64)((f32)(4194304.0 * delta_time) * clock_speed_scale);
     u64 end_cycles = clock_cycles + frame_cycles;

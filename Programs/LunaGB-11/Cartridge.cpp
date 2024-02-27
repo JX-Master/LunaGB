@@ -436,34 +436,28 @@ void mbc3_write(Emulator* emu, u16 addr, u8 data)
     }
     if(addr >= 0x4000 && addr <= 0x5FFF)
     {
-        if(data <= 0x03)
-        {
-            // Set RAM bank number.
-            emu->ram_bank_number = data;
-            return;
-        }
-        if(data >= 0x08 && data <= 0x0C)
-        {
-            // Map RTC registers.
-            emu->ram_bank_number = data;
-            return;
-        }
+        // Set RAM bank number, or map RTC registers.
+        emu->ram_bank_number = data;
+        return;
     }
     if(addr >= 0x6000 && addr <= 0x7FFF)
     {
-        if(data == 0x01 && emu->rtc.time_latching)
+        if(is_cart_timer(get_cartridge_header(emu->rom_data)->cartridge_type))
         {
-            emu->rtc.latch();
+            if(data == 0x01 && emu->rtc.time_latching)
+            {
+                emu->rtc.latch();
+            }
+            if(data == 0x00)
+            {
+                emu->rtc.time_latching = true;
+            }
+            else
+            {
+                emu->rtc.time_latching = false;
+            }
+            return;
         }
-        if(data == 0x00)
-        {
-            emu->rtc.time_latching = true;
-        }
-        else
-        {
-            emu->rtc.time_latching = false;
-        }
-        return;
     }
     if(addr >= 0xA000 && addr <= 0xBFFF)
     {
@@ -472,38 +466,15 @@ void mbc3_write(Emulator* emu, u16 addr, u8 data)
             if(emu->cram)
             {
                 if(!emu->cram_enable) return;
-                if(emu->num_rom_banks <= 32)
-                {
-                    if(emu->banking_mode)
-                    {
-                        // Advanced banking mode.
-                        usize bank_offset = emu->ram_bank_number * 8_kb;
-                        luassert(bank_offset + (addr - 0xA000) <= emu->cram_size);
-                        emu->cram[bank_offset + (addr - 0xA000)] = data;
-                    }
-                    else
-                    {
-                        // Simple banking mode.
-                        emu->cram[addr - 0xA000] = data;
-                    }
-                }
-                else
-                {
-                    // ram_bank_number is used for switching ROM banks, use 1 ram page.
-                    emu->cram[addr - 0xA000] = data;
-                }
+                usize bank_offset = emu->ram_bank_number * 8_kb;
+                luassert(bank_offset + (addr - 0xA000) <= emu->cram_size);
+                emu->cram[bank_offset + (addr - 0xA000)] = data;
+                return;
             }
-            return;
         }
         if(is_cart_timer(get_cartridge_header(emu->rom_data)->cartridge_type) && 
             emu->ram_bank_number >= 0x08 && emu->ram_bank_number <= 0x0C)
         {
-            if(emu->ram_bank_number == 0x0C &&
-                emu->rtc.halted() &&
-                !bit_test(&data, 6))
-            {
-                emu->rtc.resume();
-            }
             ((u8*)(&emu->rtc.s))[emu->ram_bank_number - 0x08] = data;
             emu->rtc.update_timestamp();
             return;

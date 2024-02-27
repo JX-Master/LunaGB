@@ -1,18 +1,14 @@
 #include "RTC.hpp"
-#include <Luna/Runtime/Time.hpp>
 
 void RTC::init()
 {
     memzero(this);
-    last_timestamp = get_utc_timestamp();
 }
-void RTC::update()
+void RTC::update(f64 delta_time)
 {
     if(!halted())
     {
-        i64 current_timestamp = get_utc_timestamp();
-        timestamp += current_timestamp - last_timestamp;
-        last_timestamp = current_timestamp;
+        time += delta_time;
         if(!time_latched)
         {
             update_time_registers();
@@ -21,10 +17,10 @@ void RTC::update()
 }
 void RTC::update_time_registers()
 {
-    s = timestamp % 60;
-    m = (timestamp / 60) % 60;
-    h = (timestamp / 3600) % 24;
-    u16 days = (u16)(timestamp / 86400);
+    s = ((u64)time) % 60;
+    m = (((u64)time) / 60) % 60;
+    h = (((u64)time) / 3600) % 24;
+    u16 days = (u16)(((u64)time) / 86400);
     dl = (u8)(days & 0xFF);
     if(days & 0x100) bit_set(&dh, 0);
     else bit_reset(&dh, 0);
@@ -33,10 +29,10 @@ void RTC::update_time_registers()
 }
 void RTC::update_timestamp()
 {
-    timestamp = s + ((u64)m) * 60 + ((u64)h) * 3600 + ((u64)days()) * 86400;
+    time = s + ((u64)m) * 60 + ((u64)h) * 3600 + ((u64)days()) * 86400;
     if(day_overflow())
     {
-        timestamp += 86400 * 512;
+        time += 86400 * 512;
     }
 }
 void RTC::latch()
@@ -50,8 +46,4 @@ void RTC::latch()
         time_latched = false;
         update_time_registers();
     }
-}
-void RTC::resume()
-{
-    last_timestamp = get_utc_timestamp();
 }
