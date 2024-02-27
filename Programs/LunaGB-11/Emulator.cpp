@@ -2,6 +2,7 @@
 #include "Cartridge.hpp"
 #include <Luna/Runtime/Log.hpp>
 #include <Luna/Runtime/File.hpp>
+#include <Luna/Runtime/Time.hpp>
 
 RV Emulator::init(Path cartridge_path, const void* cartridge_data, usize cartridge_data_size)
 {
@@ -260,6 +261,23 @@ void Emulator::load_cartridge_ram_data()
         path.replace_extension("sav");
         lulet(f, open_file(path.encode().c_str(), FileOpenFlag::read, FileCreationMode::open_existing));
         luexp(f->read(cram, cram_size));
+        if(is_cart_timer(get_cartridge_header(rom_data)->cartridge_type))
+        {
+            // Restore RTC.
+            luexp(f->read(&rtc, sizeof(RTC)));
+            // Read timestamp.
+            i64 save_timestamp;
+            luexp(f->read(&save_timestamp, sizeof(i64)));
+            if(!rtc.halted())
+            {
+                // Apply delta time between last save time and current time.
+                i64 current_timestamp = get_utc_timestamp();
+                i64 delta_time = current_timestamp - save_timestamp;
+                if(delta_time < 0) delta_time = 0;
+                rtc.time += delta_time;
+                rtc.update_time_registers();
+            }
+        }
         log_info("LunaGB", "cartridge RAM data loaded: %s", path.encode().c_str());
     }
     lucatch {}
@@ -274,6 +292,14 @@ void Emulator::save_cartridge_ram_data()
         path.replace_extension("sav");
         lulet(f, open_file(path.encode().c_str(), FileOpenFlag::write, FileCreationMode::create_always));
         luexp(f->write(cram, cram_size));
+        if(is_cart_timer(get_cartridge_header(rom_data)->cartridge_type))
+        {
+            // Save RTC state.
+            luexp(f->write(&rtc, sizeof(RTC)));
+            // Save current timestamp.
+            i64 timestamp = get_utc_timestamp();
+            luexp(f->write(&timestamp, sizeof(i64)));
+        }
         log_info("LunaGB", "Save cartridge RAM data to %s.", path.encode().c_str());
     }
     lucatch
