@@ -48,6 +48,7 @@ RV App::init()
         ImGuiUtils::set_active_window(window);
         last_frame_ticks = get_ticks();
         luexp(init_render_resources());
+        luexp(init_audio_resources());
     }
     lucatchret;
     return ok;
@@ -180,6 +181,51 @@ float4 main(PS_INPUT input) : SV_Target
             RHI::WriteDescriptorSet::read_texture_view(1, RHI::TextureViewDesc::tex2d(emulator_display_tex)),
             RHI::WriteDescriptorSet::sampler(2, RHI::SamplerDesc(RHI::Filter::nearest, RHI::Filter::nearest, RHI::Filter::nearest, RHI::TextureAddressMode::clamp, RHI::TextureAddressMode::clamp, RHI::TextureAddressMode::clamp))
                 }));
+    }
+    lucatchret;
+    return ok;
+}
+u32 on_playback_audio(void* dst_buffer, const AHI::WaveFormat& format, u32 num_frames)
+{
+    u32 num_frames_read = 0;
+    while(num_frames_read < num_frames)
+    {
+        // Clear audio data for now.
+        ((f32*)dst_buffer)[num_frames_read * 2] = 0.0f;
+        ((f32*)dst_buffer)[num_frames_read * 2 + 1] = 0.0f;
+        ++num_frames_read;
+    }
+    return num_frames_read;
+}
+RV App::init_audio_resources()
+{
+    lutry
+    {
+        // Enumerate and select adapters.
+        Vector<Ref<AHI::IAdapter>> adapters;
+        luexp(AHI::get_adapters(&adapters, nullptr));
+        // Choose primary adapter.
+        AHI::IAdapter* choosed_adapter;
+        for(auto& ada : adapters)
+        {
+            if(ada->is_primary())
+            {
+                choosed_adapter = ada;
+                break;       
+            }
+        }
+        luassert(choosed_adapter);
+        log_info("LunaGB", "Audio adapter: %s", choosed_adapter->get_name());
+        // Create device.
+        AHI::DeviceDesc desc;
+        desc.flags = AHI::DeviceFlag::playback;
+        desc.sample_rate = 0;
+        desc.playback.adapter = choosed_adapter;
+        desc.playback.bit_depth = AHI::BitDepth::f32;
+        desc.playback.num_channels = 2;
+        luset(audio_device, AHI::new_device(desc));
+        // Add playback data callback.
+        audio_device->add_playback_data_callback(on_playback_audio);
     }
     lucatchret;
     return ok;

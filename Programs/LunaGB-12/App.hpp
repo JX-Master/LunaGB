@@ -3,6 +3,7 @@
 #include "Emulator.hpp"
 #include <Luna/Runtime/UniquePtr.hpp>
 #include "DebugWindow.hpp"
+#include <Luna/AHI/Device.hpp>
 using namespace Luna;
 
 struct App
@@ -41,8 +42,12 @@ struct App
     Ref<RHI::IPipelineLayout> emulator_display_playout;
     Ref<RHI::IPipelineState> emulator_display_pso;
 
+    //! The audio device.
+    Ref<AHI::IDevice> audio_device;
+
     RV init();
     RV init_render_resources();
+    RV init_audio_resources();
     RV update();
     void update_emulator_input();
     RV draw_emulator_screen(RHI::ITexture* back_buffer);
