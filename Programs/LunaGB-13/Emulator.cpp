@@ -45,6 +45,7 @@ RV Emulator::init(Path cartridge_path, const void* cartridge_data, usize cartrid
     ppu.init();
     joypad.init();
     rtc.init();
+    apu.init();
     switch(header->ram_size)
     {
         case 2: cram_size = 8_kb; break;
@@ -97,6 +98,7 @@ void Emulator::tick(u32 mcycles)
             serial.tick(this);
         }
         ppu.tick(this);
+        apu.tick(this);
     }
 }
 void Emulator::close()
@@ -162,6 +164,10 @@ u8 Emulator::bus_read(u16 addr)
     {
         // IF
         return int_flags | 0xE0;
+    }
+    if(addr >= 0xFF10 && addr <= 0xFF3F)
+    {
+        return apu.bus_read(addr);
     }
     if(addr >= 0xFF40 && addr <= 0xFF4B)
     {
@@ -230,6 +236,11 @@ void Emulator::bus_write(u16 addr, u8 data)
     {
         // IF
         int_flags = data & 0x1F;
+        return;
+    }
+    if(addr >= 0xFF10 && addr <= 0xFF3F)
+    {
+        apu.bus_write(addr, data);
         return;
     }
     if(addr >= 0xFF40 && addr <= 0xFF4B)

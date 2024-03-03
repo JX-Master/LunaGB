@@ -187,13 +187,33 @@ float4 main(PS_INPUT input) : SV_Target
 }
 u32 on_playback_audio(void* dst_buffer, const AHI::WaveFormat& format, u32 num_frames)
 {
+    LockGuard guard(g_app->audio_buffer_lock);
     u32 num_frames_read = 0;
     while(num_frames_read < num_frames)
     {
-        // Clear audio data for now.
-        ((f32*)dst_buffer)[num_frames_read * 2] = 0.0f;
-        ((f32*)dst_buffer)[num_frames_read * 2 + 1] = 0.0f;
+        f64 timestamp = (f64)num_frames_read / (f64)format.sample_rate;
+        f64 sample_index = timestamp * 1048576.0;
+        // Perform linear interpolation between two sample values if the sample index is not integral.
+        u32 sample_1_index = (u32)floor(sample_index);
+        u32 sample_2_index = (u32)ceil(sample_index);
+        if(sample_2_index >= g_app->audio_buffer_l.size()) break;
+        if(sample_2_index >= g_app->audio_buffer_r.size()) break;
+        f32 sample_1_l = g_app->audio_buffer_l[sample_1_index];
+        f32 sample_2_l = g_app->audio_buffer_l[sample_2_index];
+        f32 sample_1_r = g_app->audio_buffer_r[sample_1_index];
+        f32 sample_2_r = g_app->audio_buffer_r[sample_2_index];
+        ((f32*)dst_buffer)[num_frames_read * 2] = lerp(sample_1_l, sample_2_l, (f32)sample_index - (f32)sample_1_index);
+        ((f32*)dst_buffer)[num_frames_read * 2 + 1] = lerp(sample_1_r, sample_2_r, (f32)sample_index - (f32)sample_1_index);
         ++num_frames_read;
+    }
+    if(num_frames_read)
+    {
+        // Remove read audio samples from buffer.
+        f64 delta_time = (f64)num_frames_read / (f64)format.sample_rate;
+        usize num_samples = (usize)(delta_time * 1048576.0);
+        num_samples = min(num_samples, g_app->audio_buffer_l.size());
+        g_app->audio_buffer_l.erase(g_app->audio_buffer_l.begin(), g_app->audio_buffer_l.begin() + num_samples);
+        g_app->audio_buffer_r.erase(g_app->audio_buffer_r.begin(), g_app->audio_buffer_r.begin() + num_samples);
     }
     return num_frames_read;
 }
@@ -224,6 +244,8 @@ RV App::init_audio_resources()
         desc.playback.bit_depth = AHI::BitDepth::f32;
         desc.playback.num_channels = 2;
         luset(audio_device, AHI::new_device(desc));
+        audio_buffer_l.reserve(AUDIO_BUFFER_MAX_SIZE);
+        audio_buffer_r.reserve(AUDIO_BUFFER_MAX_SIZE);
         // Add playback data callback.
         audio_device->add_playback_data_callback(on_playback_audio);
     }

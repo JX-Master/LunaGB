@@ -7,6 +7,7 @@
 #include "Joypad.hpp"
 #include <Luna/Runtime/Path.hpp>
 #include "RTC.hpp"
+#include "APU.hpp"
 using namespace Luna;
 
 constexpr u8 INT_VBLANK = 1;
@@ -71,6 +72,7 @@ struct Emulator
     PPU ppu;
     Joypad joypad;
     RTC rtc;
+    APU apu;
 
     RV init(Path cartridge_path, const void* cartridge_data, usize cartridge_data_size);
     void update(f64 delta_time);
