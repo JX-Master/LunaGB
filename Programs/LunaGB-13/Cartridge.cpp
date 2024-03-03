@@ -188,7 +188,7 @@ u8 mbc1_read(Emulator* emu, u16 addr)
             }
         }
     }
-    log_error("LunaGB", "Unsupported bus read: %02X", (u32)addr);
+    log_error("LunaGB", "Unsupported MBC1 cartridge read address: 0x%04X", (u32)addr);
     return 0xFF;
 }
 void mbc1_write(Emulator* emu, u16 addr, u8 data)
@@ -297,7 +297,7 @@ void mbc1_write(Emulator* emu, u16 addr, u8 data)
             return;
         }
     }
-    log_error("LunaGB", "Unsupported bus write: %02X", (u32)addr);
+    log_error("LunaGB", "Unsupported MBC1 cartridge write address: 0x%04X", (u32)addr);
 }
 u8 mbc2_read(Emulator* emu, u16 addr)
 {
@@ -319,7 +319,7 @@ u8 mbc2_read(Emulator* emu, u16 addr)
         data_offset %= 512;
         return (emu->cram[data_offset] & 0x0F) | 0xF0;
     }
-    log_error("LunaGB", "Unsupported bus read: %02X", (u32)addr);
+    log_error("LunaGB", "Unsupported MBC2 cartridge read address: 0x%04X", (u32)addr);
     return 0xFF;
 }
 void mbc2_write(Emulator* emu, u16 addr, u8 data)
@@ -373,7 +373,7 @@ void mbc2_write(Emulator* emu, u16 addr, u8 data)
         emu->cram[data_offset] = data & 0x0F;
         return;
     }
-    log_error("LunaGB", "Unsupported bus write: %02X", (u32)addr);
+    log_error("LunaGB", "Unsupported MBC2 cartridge write address: 0x%04X", (u32)addr);
 }
 u8 mbc3_read(Emulator* emu, u16 addr)
 {
@@ -406,7 +406,7 @@ u8 mbc3_read(Emulator* emu, u16 addr)
             return ((u8*)(&emu->rtc.s))[emu->ram_bank_number - 0x08];
         }
     }
-    log_error("LunaGB", "Unsupported bus read: %02X", (u32)addr);
+    log_error("LunaGB", "Unsupported MBC3 cartridge read address: 0x%04X", (u32)addr);
     return 0xFF;
 }
 void mbc3_write(Emulator* emu, u16 addr, u8 data)
@@ -480,7 +480,7 @@ void mbc3_write(Emulator* emu, u16 addr, u8 data)
             return;
         }
     }
-    log_error("LunaGB", "Unsupported bus write: %02X", (u32)addr);
+    log_error("LunaGB", "Unsupported MBC3 cartridge write address: 0x%04X", (u32)addr);
 }
 u8 cartridge_read(Emulator* emu, u16 addr)
 {
