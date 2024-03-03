@@ -20,6 +20,17 @@ struct APU
     //! 0xFF14
     u8 nr14_ch1_period_high_control;
 
+    // CH2 registers.
+
+    //! 0xFF16
+    u8 nr21_ch2_length_timer_duty_cycle;
+    //! 0xFF17
+    u8 nr22_ch2_volume_envelope;
+    //! 0xFF18
+    u8 nr23_ch2_period_low;
+    //! 0xFF19
+    u8 nr24_ch2_period_high_control;
+
     // Master control registers.
 
     //! 0xFF24
@@ -45,10 +56,16 @@ struct APU
     void disable();
     //! Whether CH1 is enabled.
     bool ch1_enabled() const { return bit_test(&nr52_master_control, 0); }
+    //! Whether CH2 is enabled.
+    bool ch2_enabled() const { return bit_test(&nr52_master_control, 1); }
     //! Whether CH1 is outputted to right channel.
     bool ch1_r_enabled() const { return bit_test(&nr51_master_panning, 0); }
+    //! Whether CH2 is outputted to right channel.
+    bool ch2_r_enabled() const { return bit_test(&nr51_master_panning, 1); }
     //! Whether CH1 is outputted to left channel.
     bool ch1_l_enabled() const { return bit_test(&nr51_master_panning, 4); }
+    //! Whether CH2 is outputted to left channel.
+    bool ch2_l_enabled() const { return bit_test(&nr51_master_panning, 5); }
     //! Right channel master volume (0~15).
     u8 right_volume() const { return nr50_master_volume_vin_panning & 0x07; }
     //! Left channel master volume (0~15).
@@ -93,6 +110,34 @@ struct APU
     void tick_ch1_envelope();
     //! Returns the CH1 audio sample value in the current tick, ranged in [-1, 1].
     f32 tick_ch1(Emulator* emu);
+
+    // CH2 states.
+    u8 ch2_length_timer;
+    u8 ch2_volume;
+    // Envelope states.
+    bool ch2_envelope_iteration_increase;
+    u8 ch2_envelope_iteration_pace;
+    u8 ch2_envelope_iteration_counter;
+    // Audio generation states.
+    u8 ch2_sample_index;
+    u16 ch2_period_counter;
+
+    //! Whether CH2 DAC is powered on.
+    bool ch2_dac_on() const { return (nr22_ch2_volume_envelope & 0xF8) != 0; }
+    void enable_ch2();
+    void disable_ch2();
+    u8 ch2_initial_length_timer() const { return (nr21_ch2_length_timer_duty_cycle & 0x3F); }
+    u8 ch2_wave_type() const { return (nr21_ch2_length_timer_duty_cycle & 0xC0) >> 6; }
+    u8 ch2_envelope_pace() const { return nr22_ch2_volume_envelope & 0x07; }
+    bool ch2_envelope_increase() const { return bit_test(&nr22_ch2_volume_envelope, 3); }
+    u8 ch2_initial_volume() const { return (nr22_ch2_volume_envelope & 0xF0) >> 4; }
+    u16 ch2_period() const { return (u16)nr23_ch2_period_low + (((u16)(nr24_ch2_period_high_control & 0x07)) << 8); }
+    bool ch2_length_enabled() const { return bit_test(&nr24_ch2_period_high_control, 6); }
+
+    void tick_ch2_length();
+    void tick_ch2_envelope();
+    //! Returns the CH2 audio sample value in the current tick, ranged in [-1, 1].
+    f32 tick_ch2(Emulator* emu);
 
     void init();
     void tick(Emulator* emu);

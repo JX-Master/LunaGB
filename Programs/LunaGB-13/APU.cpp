@@ -15,6 +15,7 @@ void APU::tick_div_apu(Emulator* emu)
         {
             // Length is ticked at 256Hz.
             tick_ch1_length();
+            tick_ch2_length();
         }
         if((div_apu % 4) == 0)
         {
@@ -25,6 +26,7 @@ void APU::tick_div_apu(Emulator* emu)
         {
             // Envelope is ticked at 64Hz.
             tick_ch1_envelope();
+            tick_ch2_envelope();
         }
     }
     last_div = div;
@@ -34,9 +36,11 @@ void APU::disable()
     // Clears all APU registers except nr52 and nrX1 registers in monochrome models.
     u8 nr52 = nr52_master_control;
     u8 nr11 = nr11_ch1_length_timer_duty_cycle;
+    u8 nr21 = nr21_ch2_length_timer_duty_cycle;
     memzero(this);
     nr52_master_control = nr52;
     nr11_ch1_length_timer_duty_cycle = nr11;
+    nr21_ch2_length_timer_duty_cycle = nr21;
 }
 void APU::enable_ch1()
 {
@@ -160,6 +164,82 @@ f32 APU::tick_ch1(Emulator* emu)
     }
     return dac(sample * ch1_volume);
 }
+void APU::enable_ch2()
+{
+    bit_set(&nr52_master_control, 1);
+    ch2_period_counter = 0;
+    ch2_sample_index = 0;
+    ch2_length_timer = ch2_initial_length_timer();
+    ch2_volume = ch2_initial_volume();
+    ch2_envelope_iteration_increase = ch2_envelope_increase();
+    ch2_envelope_iteration_pace = ch2_envelope_pace();
+    ch2_envelope_iteration_counter = 0;
+}
+void APU::disable_ch2()
+{
+    bit_reset(&nr52_master_control, 1);
+}
+void APU::tick_ch2_length()
+{
+    if(ch2_enabled() && ch2_length_enabled())
+    {
+        ++ch2_length_timer;
+        if(ch2_length_timer >= 64)
+        {
+            disable_ch2();
+        }
+    }
+}
+void APU::tick_ch2_envelope()
+{
+    if(ch2_enabled() && ch2_envelope_iteration_pace)
+    {
+        ++ch2_envelope_iteration_counter;
+        if(ch2_envelope_iteration_counter >= ch2_envelope_iteration_pace)
+        {
+            if(ch2_envelope_iteration_increase)
+            {
+                if(ch2_volume < 15)
+                {
+                    ++ch2_volume;
+                }
+            }
+            else
+            {
+                if(ch2_volume > 0)
+                {
+                    --ch2_volume;
+                }
+            }
+            ch2_envelope_iteration_counter = 0;
+        }
+    }
+}
+f32 APU::tick_ch2(Emulator* emu)
+{
+    if(!ch2_dac_on())
+    {
+        disable_ch2();
+        return 0;
+    }
+    ++ch2_period_counter;
+    if(ch2_period_counter >= 0x800)
+    {
+        // advance to next sample.
+        ch2_sample_index = (ch2_sample_index + 1) % 8;
+        ch2_period_counter = ch2_period();
+    }
+    u8 sample = 0;
+    switch(ch2_wave_type())
+    {
+        case 0: sample = pulse_wave_0[ch2_sample_index]; break;
+        case 1: sample = pulse_wave_1[ch2_sample_index]; break;
+        case 2: sample = pulse_wave_2[ch2_sample_index]; break;
+        case 3: sample = pulse_wave_3[ch2_sample_index]; break;
+        default: break;
+    }
+    return dac(sample * ch2_volume);
+}
 void APU::init()
 {
     memzero(this);
@@ -178,12 +258,20 @@ void APU::tick(Emulator* emu)
         {
             ch1_sample = tick_ch1(emu);
         }
+        // Tick CH2.
+        f32 ch2_sample = 0.0f;
+        if(ch2_enabled())
+        {
+            ch2_sample = tick_ch2(emu);
+        }
         // Mixer.
         // Output volume range in [-4, 4].
         f32 sample_l = 0.0f;
         f32 sample_r = 0.0f;
         if(ch1_l_enabled()) sample_l += ch1_sample;
         if(ch1_r_enabled()) sample_r += ch1_sample;
+        if(ch2_l_enabled()) sample_l += ch2_sample;
+        if(ch2_r_enabled()) sample_r += ch2_sample;
         // Volume control.
         // Scale output volume to [-1, 1].
         sample_l /= 4.0f;
@@ -217,6 +305,21 @@ u8 APU::bus_read(u16 addr)
         }
         return (&nr10_ch1_sweep)[addr - 0xFF10];
     }
+    // CH2 registers.
+    if(addr >= 0xFF16 && addr <= 0xFF19)
+    {
+        if(addr == 0xFF16)
+        {
+            // lower 6 bits of NR21 is write-only.
+            return nr21_ch2_length_timer_duty_cycle & 0xC0;
+        }
+        if(addr == 0xFF19)
+        {
+            // only bit 6 is readable.
+            return nr24_ch2_period_high_control & 0x40;
+        }
+        return (&nr21_ch2_length_timer_duty_cycle)[addr - 0xFF16];
+    }
     // Master control registers.
     if(addr >= 0xFF24 && addr <= 0xFF26)
     {
@@ -247,6 +350,29 @@ void APU::bus_write(u16 addr, u8 data)
                 data &= 0x7F;
             }
             (&nr10_ch1_sweep)[addr - 0xFF10] = data;
+        }
+        return;
+    }
+    // CH2 registers.
+    if(addr >= 0xFF16 && addr <= 0xFF19)
+    {
+        if(!is_enabled())
+        {
+            // Only NRx1 is writable.
+            if(addr == 0xFF16)
+            {
+                nr21_ch2_length_timer_duty_cycle = data;
+            }
+        }
+        else
+        {
+            if(addr == 0xFF19 && bit_test(&data, 7))
+            {
+                // CH2 trigger.
+                enable_ch2();
+                data &= 0x7F;
+            }
+            (&nr21_ch2_length_timer_duty_cycle)[addr - 0xFF16] = data;
         }
         return;
     }
