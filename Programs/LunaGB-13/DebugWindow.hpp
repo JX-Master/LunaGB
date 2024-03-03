@@ -24,4 +24,5 @@ struct DebugWindow
     void serial_gui();
     void tiles_gui();
     void ppu_gui();
+    void apu_gui();
 };

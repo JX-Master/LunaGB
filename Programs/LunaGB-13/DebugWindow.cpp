@@ -14,6 +14,7 @@ void DebugWindow::gui()
         serial_gui();
         tiles_gui();
         ppu_gui();
+        apu_gui();
     }
     ImGui::End();
 }
@@ -587,6 +588,65 @@ void DebugWindow::ppu_gui()
             }
             ImGui::Text("LY: %u", (u32)g_app->emulator->ppu.ly);
             ImGui::Text("LY Compare: %u", (u32)g_app->emulator->ppu.lyc);
+        }
+    }
+}
+void DebugWindow::apu_gui()
+{
+    if (g_app->emulator)
+    {
+        if (ImGui::CollapsingHeader("APU"))
+        {
+            if(ImGui::CollapsingHeader("Master Control"))
+            {
+                ImGui::Text("Audio %s", g_app->emulator->apu.is_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Channel 1 %s", g_app->emulator->apu.ch1_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Channel 2 %s", g_app->emulator->apu.ch2_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Left channel");
+                ImGui::Text("Volume: %u/7", (u32)g_app->emulator->apu.left_volume());
+                ImGui::Text("Channel 1 %s", g_app->emulator->apu.ch1_l_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Channel 2 %s", g_app->emulator->apu.ch2_l_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Right channel");
+                ImGui::Text("Volume: %u/7", (u32)g_app->emulator->apu.right_volume());
+                ImGui::Text("Channel 1 %s", g_app->emulator->apu.ch1_r_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Channel 2 %s", g_app->emulator->apu.ch2_r_enabled() ? "Enabled" : "Disabled");
+            }
+            if(ImGui::CollapsingHeader("Audio Channel 1"))
+            {
+                ImGui::Text("Wave Duty: %u", (u32)g_app->emulator->apu.ch1_wave_type());
+                ImGui::Text("Period: %u", (u32)g_app->emulator->apu.ch1_period());
+                ImGui::Text("Frequency : %f", 131072.0f / (2048.0f - (f32)g_app->emulator->apu.ch1_period()));
+                ImGui::Text("Current Volume: %u/16", (u32)g_app->emulator->apu.ch1_volume);
+                ImGui::Text("Initial Volume: %u/16", (u32)g_app->emulator->apu.ch1_initial_volume());
+                if(g_app->emulator->apu.ch1_envelope_iteration_pace != 0)
+                {
+                    ImGui::Text("Envelope Direction: %s", g_app->emulator->apu.ch1_envelope_iteration_increase ? "Increase" : "Decrease");
+                    ImGui::Text("Envelope Sweep Pace: %u", (u32)g_app->emulator->apu.ch1_envelope_iteration_pace);
+                }
+                else
+                {
+                    ImGui::Text("Envelope Disabled");
+                }
+                ImGui::Text("Sweep Pace: %u", (u32)g_app->emulator->apu.ch1_sweep_pace());
+                ImGui::Text("Sweep Step: %u", (u32)g_app->emulator->apu.ch1_sweep_individual_step());
+            }
+            if(ImGui::CollapsingHeader("Audio Channel 2"))
+            {
+                ImGui::Text("Wave Duty: %u", (u32)g_app->emulator->apu.ch2_wave_type());
+                ImGui::Text("Period: %u", (u32)g_app->emulator->apu.ch2_period());
+                ImGui::Text("Frequency : %f", 131072.0f / (2048.0f - (f32)g_app->emulator->apu.ch2_period()));
+                ImGui::Text("Current Volume: %u/16", (u32)g_app->emulator->apu.ch2_volume);
+                ImGui::Text("Initial Volume: %u/16", (u32)g_app->emulator->apu.ch2_initial_volume());
+                if(g_app->emulator->apu.ch2_envelope_iteration_pace)
+                {
+                    ImGui::Text("Envelope Direction: %s", g_app->emulator->apu.ch2_envelope_iteration_increase ? "Increase" : "Decrease");
+                    ImGui::Text("Envelope Sweep Pace: %u", (u32)g_app->emulator->apu.ch2_envelope_iteration_pace);
+                }
+                else
+                {
+                    ImGui::Text("Envelope Disabled");
+                }
+            }
         }
     }
 }
