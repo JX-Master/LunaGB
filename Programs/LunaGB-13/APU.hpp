@@ -84,6 +84,7 @@ struct APU
     // Audio generation states.
     u8 ch1_sample_index;
     u16 ch1_period_counter;
+    f32 ch1_output_sample;
 
     //! Whether CH1 DAC is powered on.
     bool ch1_dac_on() const { return (nr12_ch1_volume_envelope & 0xF8) != 0; }
@@ -109,7 +110,7 @@ struct APU
     void tick_ch1_sweep();
     void tick_ch1_envelope();
     //! Returns the CH1 audio sample value in the current tick, ranged in [-1, 1].
-    f32 tick_ch1(Emulator* emu);
+    void tick_ch1(Emulator* emu);
 
     // CH2 states.
     u8 ch2_length_timer;
@@ -121,6 +122,7 @@ struct APU
     // Audio generation states.
     u8 ch2_sample_index;
     u16 ch2_period_counter;
+    f32 ch2_output_sample;
 
     //! Whether CH2 DAC is powered on.
     bool ch2_dac_on() const { return (nr22_ch2_volume_envelope & 0xF8) != 0; }
@@ -137,7 +139,7 @@ struct APU
     void tick_ch2_length();
     void tick_ch2_envelope();
     //! Returns the CH2 audio sample value in the current tick, ranged in [-1, 1].
-    f32 tick_ch2(Emulator* emu);
+    void tick_ch2(Emulator* emu);
 
     void init();
     void tick(Emulator* emu);

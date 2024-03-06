@@ -33,14 +33,8 @@ void APU::tick_div_apu(Emulator* emu)
 }
 void APU::disable()
 {
-    // Clears all APU registers except nr52 and nrX1 registers in monochrome models.
-    u8 nr52 = nr52_master_control;
-    u8 nr11 = nr11_ch1_length_timer_duty_cycle;
-    u8 nr21 = nr21_ch2_length_timer_duty_cycle;
+    // Clears all APU registers.
     memzero(this);
-    nr52_master_control = nr52;
-    nr11_ch1_length_timer_duty_cycle = nr11;
-    nr21_ch2_length_timer_duty_cycle = nr21;
 }
 void APU::enable_ch1()
 {
@@ -139,12 +133,12 @@ inline f32 dac(u8 sample)
 {
     return lerp(-1.0f, 1.0f, ((f32)(15 - sample)) / 15.0f);
 }
-f32 APU::tick_ch1(Emulator* emu)
+void APU::tick_ch1(Emulator* emu)
 {
     if(!ch1_dac_on())
     {
         disable_ch1();
-        return 0;
+        return;
     }
     ++ch1_period_counter;
     if(ch1_period_counter >= 0x800)
@@ -162,7 +156,7 @@ f32 APU::tick_ch1(Emulator* emu)
         case 3: sample = pulse_wave_3[ch1_sample_index]; break;
         default: break;
     }
-    return dac(sample * ch1_volume);
+    ch1_output_sample = dac(sample * ch1_volume);
 }
 void APU::enable_ch2()
 {
@@ -215,12 +209,12 @@ void APU::tick_ch2_envelope()
         }
     }
 }
-f32 APU::tick_ch2(Emulator* emu)
+void APU::tick_ch2(Emulator* emu)
 {
     if(!ch2_dac_on())
     {
         disable_ch2();
-        return 0;
+        return;
     }
     ++ch2_period_counter;
     if(ch2_period_counter >= 0x800)
@@ -238,7 +232,7 @@ f32 APU::tick_ch2(Emulator* emu)
         case 3: sample = pulse_wave_3[ch2_sample_index]; break;
         default: break;
     }
-    return dac(sample * ch2_volume);
+    ch2_output_sample = dac(sample * ch2_volume);
 }
 void APU::init()
 {
@@ -253,25 +247,23 @@ void APU::tick(Emulator* emu)
     if((emu->clock_cycles % 4) == 0)
     {
         // Tick CH1.
-        f32 ch1_sample = 0.0f;
         if(ch1_enabled())
         {
-            ch1_sample = tick_ch1(emu);
+            tick_ch1(emu);
         }
         // Tick CH2.
-        f32 ch2_sample = 0.0f;
         if(ch2_enabled())
         {
-            ch2_sample = tick_ch2(emu);
+            tick_ch2(emu);
         }
         // Mixer.
         // Output volume range in [-4, 4].
         f32 sample_l = 0.0f;
         f32 sample_r = 0.0f;
-        if(ch1_l_enabled()) sample_l += ch1_sample;
-        if(ch1_r_enabled()) sample_r += ch1_sample;
-        if(ch2_l_enabled()) sample_l += ch2_sample;
-        if(ch2_r_enabled()) sample_r += ch2_sample;
+        if(ch1_l_enabled()) sample_l += ch1_output_sample;
+        if(ch1_r_enabled()) sample_r += ch1_output_sample;
+        if(ch2_l_enabled()) sample_l += ch2_output_sample;
+        if(ch2_r_enabled()) sample_r += ch2_output_sample;
         // Volume control.
         // Scale output volume to [-1, 1].
         sample_l /= 4.0f;
