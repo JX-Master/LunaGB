@@ -40,15 +40,15 @@ void APU::enable_ch1()
 {
     bit_set(&nr52_master_control, 0);
     // Save NR1x states to registers.
-    ch1_period_counter = ch1_period();
     ch1_sample_index = 0;
-    ch1_length_timer = ch1_initial_length_timer();
     ch1_volume = ch1_initial_volume();
+    ch1_period_counter = ch1_period();
+    ch1_sweep_iteration_counter = 0;
+    ch1_sweep_iteration_pace = ch1_sweep_pace();
     ch1_envelope_iteration_increase = ch1_envelope_increase();
     ch1_envelope_iteration_pace = ch1_envelope_pace();
     ch1_envelope_iteration_counter = 0;
-    ch1_sweep_iteration_counter = 0;
-    ch1_sweep_iteration_pace = ch1_sweep_pace();
+    ch1_length_timer = ch1_initial_length_timer();
 }
 void APU::disable_ch1()
 {
@@ -161,13 +161,13 @@ void APU::tick_ch1(Emulator* emu)
 void APU::enable_ch2()
 {
     bit_set(&nr52_master_control, 1);
-    ch2_period_counter = 0;
     ch2_sample_index = 0;
-    ch2_length_timer = ch2_initial_length_timer();
     ch2_volume = ch2_initial_volume();
+    ch2_period_counter = 0;
     ch2_envelope_iteration_increase = ch2_envelope_increase();
     ch2_envelope_iteration_pace = ch2_envelope_pace();
     ch2_envelope_iteration_counter = 0;
+    ch2_length_timer = ch2_initial_length_timer();
 }
 void APU::disable_ch2()
 {

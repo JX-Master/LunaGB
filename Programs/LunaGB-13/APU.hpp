@@ -72,19 +72,20 @@ struct APU
     u8 left_volume() const { return (nr50_master_volume_vin_panning & 0x70) >> 4; }
 
     // CH1 states.
-    u8 ch1_length_timer;
+    // Audio generation states.
+    u8 ch1_sample_index;
     u8 ch1_volume;
+    u16 ch1_period_counter;
+    f32 ch1_output_sample;
+    // Sweep states.
+    u8 ch1_sweep_iteration_counter;
+    u8 ch1_sweep_iteration_pace;
     // Envelope states.
     bool ch1_envelope_iteration_increase;
     u8 ch1_envelope_iteration_pace;
     u8 ch1_envelope_iteration_counter;
-    // Sweep states.
-    u8 ch1_sweep_iteration_counter;
-    u8 ch1_sweep_iteration_pace;
-    // Audio generation states.
-    u8 ch1_sample_index;
-    u16 ch1_period_counter;
-    f32 ch1_output_sample;
+    // Length timer states.
+    u8 ch1_length_timer;
 
     //! Whether CH1 DAC is powered on.
     bool ch1_dac_on() const { return (nr12_ch1_volume_envelope & 0xF8) != 0; }
@@ -109,20 +110,20 @@ struct APU
     void tick_ch1_length();
     void tick_ch1_sweep();
     void tick_ch1_envelope();
-    //! Returns the CH1 audio sample value in the current tick, ranged in [-1, 1].
     void tick_ch1(Emulator* emu);
 
     // CH2 states.
-    u8 ch2_length_timer;
+    // Audio generation states.
+    u8 ch2_sample_index;
     u8 ch2_volume;
+    u16 ch2_period_counter;
+    f32 ch2_output_sample;
     // Envelope states.
     bool ch2_envelope_iteration_increase;
     u8 ch2_envelope_iteration_pace;
     u8 ch2_envelope_iteration_counter;
-    // Audio generation states.
-    u8 ch2_sample_index;
-    u16 ch2_period_counter;
-    f32 ch2_output_sample;
+    // Length timer states.
+    u8 ch2_length_timer;
 
     //! Whether CH2 DAC is powered on.
     bool ch2_dac_on() const { return (nr22_ch2_volume_envelope & 0xF8) != 0; }
@@ -138,7 +139,6 @@ struct APU
 
     void tick_ch2_length();
     void tick_ch2_envelope();
-    //! Returns the CH2 audio sample value in the current tick, ranged in [-1, 1].
     void tick_ch2(Emulator* emu);
 
     void init();
