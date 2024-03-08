@@ -54,17 +54,6 @@ void APU::disable_ch1()
 {
     bit_reset(&nr52_master_control, 0);
 }
-void APU::tick_ch1_length()
-{
-    if(ch1_enabled() && ch1_length_enabled())
-    {
-        ++ch1_length_timer;
-        if(ch1_length_timer >= 64)
-        {
-            disable_ch1();
-        }
-    }
-}
 void APU::tick_ch1_sweep()
 {
     if(ch1_enabled() && ch1_sweep_pace())
@@ -125,6 +114,17 @@ void APU::tick_ch1_envelope()
         }
     }
 }
+void APU::tick_ch1_length()
+{
+    if(ch1_enabled() && ch1_length_enabled())
+    {
+        ++ch1_length_timer;
+        if(ch1_length_timer >= 64)
+        {
+            disable_ch1();
+        }
+    }
+}
 constexpr u8 pulse_wave_0[8] = {1, 1, 1, 1, 1, 1, 1, 0};
 constexpr u8 pulse_wave_1[8] = {0, 1, 1, 1, 1, 1, 1, 0};
 constexpr u8 pulse_wave_2[8] = {0, 1, 1, 1, 1, 0, 0, 0};
@@ -173,17 +173,6 @@ void APU::disable_ch2()
 {
     bit_reset(&nr52_master_control, 1);
 }
-void APU::tick_ch2_length()
-{
-    if(ch2_enabled() && ch2_length_enabled())
-    {
-        ++ch2_length_timer;
-        if(ch2_length_timer >= 64)
-        {
-            disable_ch2();
-        }
-    }
-}
 void APU::tick_ch2_envelope()
 {
     if(ch2_enabled() && ch2_envelope_iteration_pace)
@@ -206,6 +195,17 @@ void APU::tick_ch2_envelope()
                 }
             }
             ch2_envelope_iteration_counter = 0;
+        }
+    }
+}
+void APU::tick_ch2_length()
+{
+    if(ch2_enabled() && ch2_length_enabled())
+    {
+        ++ch2_length_timer;
+        if(ch2_length_timer >= 64)
+        {
+            disable_ch2();
         }
     }
 }
@@ -268,8 +268,8 @@ void APU::tick(Emulator* emu)
         // Scale output volume to [-1, 1].
         sample_l /= 4.0f;
         sample_r /= 4.0f;
-        sample_l *= ((f32)left_volume()) / 15.0f;
-        sample_r *= ((f32)right_volume()) / 15.0f;
+        sample_l *= ((f32)left_volume()) / 7.0f;
+        sample_r *= ((f32)right_volume()) / 7.0f;
         // Output samples.
         LockGuard guard(g_app->audio_buffer_lock);
         // Restrict audio buffer size to store at most 65536 samples
@@ -335,6 +335,15 @@ void APU::bus_write(u16 addr, u8 data)
         }
         else
         {
+            if(addr == 0xFF10)
+            {
+                if((nr10_ch1_sweep & 0x70) == 0 && ((data & 0x70) != 0))
+                {
+                    // Restart sweep iteration.
+                    ch1_sweep_iteration_counter = 0;
+                    ch1_sweep_iteration_pace = (data & 0x70) >> 4;
+                }
+            }
             if(addr == 0xFF14 && bit_test(&data, 7))
             {
                 // CH1 trigger.
@@ -375,7 +384,7 @@ void APU::bus_write(u16 addr, u8 data)
         {
             bool enabled_before = is_enabled();
             // Only bit 7 is writable.
-            nr52_master_control = data & 0x80;
+            nr52_master_control = (data & 0x80) | (nr52_master_control & 0x7F);
             if(enabled_before && !is_enabled())
             {
                 disable();

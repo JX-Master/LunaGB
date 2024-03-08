@@ -107,9 +107,9 @@ struct APU
     }
     bool ch1_length_enabled() const { return bit_test(&nr14_ch1_period_high_control, 6); }
 
-    void tick_ch1_length();
     void tick_ch1_sweep();
     void tick_ch1_envelope();
+    void tick_ch1_length();
     void tick_ch1(Emulator* emu);
 
     // CH2 states.
@@ -137,8 +137,8 @@ struct APU
     u16 ch2_period() const { return (u16)nr23_ch2_period_low + (((u16)(nr24_ch2_period_high_control & 0x07)) << 8); }
     bool ch2_length_enabled() const { return bit_test(&nr24_ch2_period_high_control, 6); }
 
-    void tick_ch2_length();
     void tick_ch2_envelope();
+    void tick_ch2_length();
     void tick_ch2(Emulator* emu);
 
     void init();
