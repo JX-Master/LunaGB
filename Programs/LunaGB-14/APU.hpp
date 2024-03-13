@@ -31,6 +31,19 @@ struct APU
     //! 0xFF19
     u8 nr24_ch2_period_high_control;
 
+    // CH3 registers.
+
+    //! 0xFF1A
+    u8 nr30_ch3_dac_enable;
+    //! 0xFF1B
+    u8 nr31_ch3_length_timer;
+    //! 0xFF1C
+    u8 nr32_ch3_output_level;
+    //! 0xFF1D
+    u8 nr33_ch3_period_low;
+    //! 0xFF1E
+    u8 nr34_ch3_period_high_control;
+
     // Master control registers.
 
     //! 0xFF24
@@ -39,6 +52,9 @@ struct APU
     u8 nr51_master_panning;
     //! 0xFF26
     u8 nr52_master_control;
+
+    //! 0xFF30-0xFF3F.
+    u8 wave_pattern_ram[16];
 
     // APU internal state.
     
@@ -58,14 +74,20 @@ struct APU
     bool ch1_enabled() const { return bit_test(&nr52_master_control, 0); }
     //! Whether CH2 is enabled.
     bool ch2_enabled() const { return bit_test(&nr52_master_control, 1); }
+    //! Whether CH3 is enabled.
+    bool ch3_enabled() const { return bit_test(&nr52_master_control, 2); }
     //! Whether CH1 is outputted to right channel.
     bool ch1_r_enabled() const { return bit_test(&nr51_master_panning, 0); }
     //! Whether CH2 is outputted to right channel.
     bool ch2_r_enabled() const { return bit_test(&nr51_master_panning, 1); }
+    //! Whether CH3 is outputted to right channel.
+    bool ch3_r_enabled() const { return bit_test(&nr51_master_panning, 2); }
     //! Whether CH1 is outputted to left channel.
     bool ch1_l_enabled() const { return bit_test(&nr51_master_panning, 4); }
     //! Whether CH2 is outputted to left channel.
     bool ch2_l_enabled() const { return bit_test(&nr51_master_panning, 5); }
+    //! Whether CH3 is outputted to left channel.
+    bool ch3_l_enabled() const { return bit_test(&nr51_master_panning, 6); }
     //! Right channel master volume (0~15).
     u8 right_volume() const { return nr50_master_volume_vin_panning & 0x07; }
     //! Left channel master volume (0~15).
@@ -140,6 +162,27 @@ struct APU
     void tick_ch2_envelope();
     void tick_ch2_length();
     void tick_ch2(Emulator* emu);
+
+    // CH3 states.
+    // Audio generation states.
+    u8 ch3_sample_index;
+    u16 ch3_period_counter;
+    f32 ch3_output_sample;
+    // Length timer states.
+    u8 ch3_length_timer;
+
+    //! Whether CH3 DAC is powered on.
+    bool ch3_dac_on() const { return bit_test(&nr30_ch3_dac_enable, 7); }
+    void enable_ch3();
+    void disable_ch3();
+    u8 ch3_initial_length_timer() const { return nr31_ch3_length_timer; }
+    u8 ch3_output_level() const { return (nr32_ch3_output_level & 0x60) >> 5; }
+    u16 ch3_period() const { return (u16)nr33_ch3_period_low + (((u16)(nr34_ch3_period_high_control & 0x07)) << 8); }
+    bool ch3_length_enabled() const { return bit_test(&nr34_ch3_period_high_control, 6); }
+    u8 ch3_wave_pattern(u8 index) const;
+
+    void tick_ch3_length();
+    void tick_ch3(Emulator* emu);
 
     void init();
     void tick(Emulator* emu);

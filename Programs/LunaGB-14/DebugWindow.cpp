@@ -626,6 +626,7 @@ void DebugWindow::apu_gui()
                 else
                 {
                     ImGui::Text("Envelope Disabled");
+                    ImGui::Text(" ");
                 }
                 ImGui::Text("Sweep Pace: %u", (u32)g_app->emulator->apu.ch1_sweep_pace());
                 ImGui::Text("Sweep Step: %u", (u32)g_app->emulator->apu.ch1_sweep_individual_step());
@@ -645,6 +646,26 @@ void DebugWindow::apu_gui()
                 else
                 {
                     ImGui::Text("Envelope Disabled");
+                    ImGui::Text(" ");
+                }
+            }
+            if(ImGui::CollapsingHeader("Audio Channel 3"))
+            {
+                f32 waveform[32];
+                for(u8 i = 0; i < 32; ++i)
+                {
+                    waveform[i] = (f32)g_app->emulator->apu.ch3_wave_pattern(i);
+                }
+                ImGui::PlotLines("Waveform", waveform, 32, 0, NULL, 0.0f, 15.0f);
+                ImGui::Text("Period: %u", (u32)g_app->emulator->apu.ch3_period());
+                u8 output_level = g_app->emulator->apu.ch3_output_level();
+                switch(output_level)
+                {
+                    case 0: ImGui::Text("Volume: 0%%"); break;
+                    case 1: ImGui::Text("Volume: 100%%"); break;
+                    case 2: ImGui::Text("Volume: 50%%"); break;
+                    case 3: ImGui::Text("Volume: 25%%"); break;
+                    default: break;
                 }
             }
         }

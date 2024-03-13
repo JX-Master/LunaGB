@@ -16,6 +16,7 @@ void APU::tick_div_apu(Emulator* emu)
             // Length is ticked at 256Hz.
             tick_ch1_length();
             tick_ch2_length();
+            tick_ch3_length();
         }
         if((div_apu % 4) == 0)
         {
@@ -234,6 +235,66 @@ void APU::tick_ch2(Emulator* emu)
     }
     ch2_output_sample = dac(sample * ch2_volume);
 }
+void APU::enable_ch3()
+{
+    bit_set(&nr52_master_control, 2);
+    ch3_period_counter = 0;
+    ch3_sample_index = 1;
+    ch3_length_timer = ch3_initial_length_timer();
+}
+void APU::disable_ch3()
+{
+    bit_reset(&nr52_master_control, 2);
+}
+u8 APU::ch3_wave_pattern(u8 index) const
+{
+    luassert(index < 32);
+    u8 base = index / 2;
+    u8 wave = wave_pattern_ram[base];
+    // Read upper then lower.
+    wave = (index % 2) ? (wave & 0x0F) : ((wave >> 4) & 0x0F);
+    return wave;
+}
+void APU::tick_ch3_length()
+{
+    if(ch3_enabled() && ch3_length_enabled())
+    {
+        ++ch3_length_timer;
+        if(ch3_length_timer >= 256)
+        {
+            disable_ch3();
+        }
+    }
+}
+void APU::tick_ch3(Emulator* emu)
+{
+    if(!ch3_dac_on())
+    {
+        disable_ch3();
+    }
+    // The CH3 of APU is ticked 2 times per M-cycle.
+    for(u32 i = 0; i < 2; ++i)
+    {
+        ++ch3_period_counter;
+        if(ch3_period_counter >= 0x800)
+        {
+            // advance to next sample.
+            ch3_sample_index = (ch3_sample_index + 1) % 32;
+            ch3_period_counter = ch3_period();
+        }
+    }
+    u8 wave = ch3_wave_pattern(ch3_sample_index);
+    u8 level = ch3_output_level();
+    switch(level)
+    {
+        case 0: wave = 0; break;
+        case 1: break;
+        case 2: wave >>= 1; break;
+        case 3: wave >>= 2; break;
+        default: lupanic(); break;
+    }
+    ch3_output_sample = dac(wave);
+}
 void APU::init()
 {
     memzero(this);
@@ -256,6 +317,11 @@ void APU::tick(Emulator* emu)
         {
             tick_ch2(emu);
         }
+        // Tick CH3.
+        if(ch3_enabled())
+        {
+            tick_ch3(emu);
+        }
         // Mixer.
         // Output volume range in [-4, 4].
         f32 sample_l = 0.0f;
@@ -264,6 +330,8 @@ void APU::tick(Emulator* emu)
         if(ch1_r_enabled()) sample_r += ch1_output_sample;
         if(ch2_l_enabled()) sample_l += ch2_output_sample;
         if(ch2_r_enabled()) sample_r += ch2_output_sample;
+        if(ch3_l_enabled()) sample_l += ch3_output_sample;
+        if(ch3_r_enabled()) sample_r += ch3_output_sample;
         // Volume control.
         // Scale output volume to [-1, 1].
         sample_l /= 4.0f;
@@ -312,10 +380,30 @@ u8 APU::bus_read(u16 addr)
         }
         return (&nr21_ch2_length_timer_duty_cycle)[addr - 0xFF16];
     }
+    // CH3 registers.
+    if(addr >= 0xFF1A && addr <= 0xFF1E)
+    {
+        if(addr == 0xFF1B)
+        {
+            // NR31 is write-only.
+            return 0;
+        }
+        if(addr == 0xFF1E)
+        {
+            // only bit 6 is readable.
+            return nr34_ch3_period_high_control & 0x40;
+        }
+        return (&nr30_ch3_dac_enable)[addr - 0xFF1A];
+    }
     // Master control registers.
     if(addr >= 0xFF24 && addr <= 0xFF26)
     {
         return (&nr50_master_volume_vin_panning)[addr - 0xFF24];
+    }
+    // Wave RAM
+    if(addr >= 0xFF30 && addr <= 0xFF3F)
+    {
+        return wave_pattern_ram[addr - 0xFF30];
     }
     log_error("LunaGB", "Unsupported bus read address: 0x%04X", (u32)addr);
     return 0xFF;
@@ -377,6 +465,29 @@ void APU::bus_write(u16 addr, u8 data)
         }
         return;
     }
+    // CH3 registers.
+    if(addr >= 0xFF1A && addr <= 0xFF1E)
+    {
+        if(!is_enabled())
+        {
+            // Only NRx1 is writable.
+            if(addr == 0xFF1B)
+            {
+                nr31_ch3_length_timer = data;
+            }
+        }
+        else
+        {
+            if(addr == 0xFF1E && bit_test(&data, 7))
+            {
+                // CH3 trigger.
+                enable_ch3();
+                data &= 0x7F;
+            }
+            (&nr30_ch3_dac_enable)[addr - 0xFF1A] = data;
+        }
+        return;
+    }
     // Master control registers.
     if(addr >= 0xFF24 && addr <= 0xFF26)
     {
@@ -394,6 +505,12 @@ void APU::bus_write(u16 addr, u8 data)
         // All registers except NR52 is read-only if APU is not enabled.
         if(!is_enabled()) return;
         (&nr50_master_volume_vin_panning)[addr - 0xFF24] = data;
+        return;
+    }
+    // Wave RAM
+    if(addr >= 0xFF30 && addr <= 0xFF3F)
+    {
+        wave_pattern_ram[addr - 0xFF30] = data;
         return;
     }
     log_error("LunaGB", "Unsupported bus write address: 0x%04X", (u32)addr);
