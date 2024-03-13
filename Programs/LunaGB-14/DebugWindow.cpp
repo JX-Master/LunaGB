@@ -668,6 +668,15 @@ void DebugWindow::apu_gui()
                     default: break;
                 }
             }
+            if(ImGui::CollapsingHeader("Audio Channel 4"))
+            {
+                ImGui::Text("Period: %u", (u32)g_app->emulator->apu.ch4_period());
+                ImGui::Text("Update Frequency : %f", 1048576.0f / (f32)g_app->emulator->apu.ch4_period());
+                ImGui::Text("Volume: %u/16", (u32)g_app->emulator->apu.ch4_volume);
+                ImGui::Text("Initial Volume: %u/16", (u32)g_app->emulator->apu.ch4_initial_volume());
+                ImGui::Text("Envelope Direction: %s", g_app->emulator->apu.ch4_envelope_iteration_increase ? "Increase" : "Decrease");
+                ImGui::Text("Envelope Sweep Pace: %u", (u32)g_app->emulator->apu.ch4_envelope_iteration_pace);
+            }
         }
     }
 }

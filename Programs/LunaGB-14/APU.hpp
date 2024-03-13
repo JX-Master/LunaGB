@@ -44,6 +44,17 @@ struct APU
     //! 0xFF1E
     u8 nr34_ch3_period_high_control;
 
+    // CH4 registers.
+
+    //! 0xFF20
+    u8 nr41_ch4_length_timer;
+    //! 0xFF21
+    u8 nr42_ch4_volume_envelope;
+    //! 0xFF22
+    u8 nr43_ch4_freq_randomness;
+    //! 0xFF23
+    u8 nr44_ch4_control;
+
     // Master control registers.
 
     //! 0xFF24
@@ -76,18 +87,24 @@ struct APU
     bool ch2_enabled() const { return bit_test(&nr52_master_control, 1); }
     //! Whether CH3 is enabled.
     bool ch3_enabled() const { return bit_test(&nr52_master_control, 2); }
+    //! Whether CH4 is enabled.
+    bool ch4_enabled() const { return bit_test(&nr52_master_control, 3); }
     //! Whether CH1 is outputted to right channel.
     bool ch1_r_enabled() const { return bit_test(&nr51_master_panning, 0); }
     //! Whether CH2 is outputted to right channel.
     bool ch2_r_enabled() const { return bit_test(&nr51_master_panning, 1); }
     //! Whether CH3 is outputted to right channel.
     bool ch3_r_enabled() const { return bit_test(&nr51_master_panning, 2); }
+    //! Whether CH4 is outputted to right channel.
+    bool ch4_r_enabled() const { return bit_test(&nr51_master_panning, 3); }
     //! Whether CH1 is outputted to left channel.
     bool ch1_l_enabled() const { return bit_test(&nr51_master_panning, 4); }
     //! Whether CH2 is outputted to left channel.
     bool ch2_l_enabled() const { return bit_test(&nr51_master_panning, 5); }
     //! Whether CH3 is outputted to left channel.
     bool ch3_l_enabled() const { return bit_test(&nr51_master_panning, 6); }
+    //! Whether CH4 is outputted to left channel.
+    bool ch4_l_enabled() const { return bit_test(&nr51_master_panning, 7); }
     //! Right channel master volume (0~15).
     u8 right_volume() const { return nr50_master_volume_vin_panning & 0x07; }
     //! Left channel master volume (0~15).
@@ -183,6 +200,34 @@ struct APU
 
     void tick_ch3_length();
     void tick_ch3(Emulator* emu);
+
+    // CH4 states.
+    // Audio generation states.
+    u16 ch4_lfsr;
+    u8 ch4_volume;
+    u32 ch4_period_counter; // max value is 917504(2^15 * 7 * 4)
+    f32 ch4_output_sample;
+    // Envelope states.
+    bool ch4_envelope_iteration_increase;
+    u8 ch4_envelope_iteration_pace;
+    u8 ch4_envelope_iteration_counter;
+    // Length timer states.
+    u8 ch4_length_timer;
+
+    void enable_ch4();
+    void disable_ch4();
+    u8 ch4_initial_length_timer() const { return nr41_ch4_length_timer & 0x3F; }
+    u8 ch4_initial_volume() const { return (nr42_ch4_volume_envelope & 0xF0) >> 4; }
+    u32 ch4_period() const { return (u32)ch4_clock_divider() * (1 << ch4_clock_shift()) * 4; }
+    bool ch4_length_enabled() const { return bit_test(&nr44_ch4_control, 6); }
+    u8 ch4_clock_divider() const { return nr43_ch4_freq_randomness & 0x07; }
+    u8 ch4_lfsr_width() const { return (nr43_ch4_freq_randomness & 0x08) >> 3; }
+    u8 ch4_clock_shift() const { return (nr43_ch4_freq_randomness & 0xF0) >> 4; }
+
+    void update_lfsr(bool short_mode);
+    void tick_ch4_envelope();
+    void tick_ch4_length();
+    void tick_ch4(Emulator* emu);
 
     void init();
     void tick(Emulator* emu);

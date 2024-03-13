@@ -17,6 +17,7 @@ void APU::tick_div_apu(Emulator* emu)
             tick_ch1_length();
             tick_ch2_length();
             tick_ch3_length();
+            tick_ch4_length();
         }
         if((div_apu % 4) == 0)
         {
@@ -28,6 +29,7 @@ void APU::tick_div_apu(Emulator* emu)
             // Envelope is ticked at 64Hz.
             tick_ch1_envelope();
             tick_ch2_envelope();
+            tick_ch4_envelope();
         }
     }
     last_div = div;
@@ -295,6 +297,82 @@ void APU::tick_ch3(Emulator* emu)
     }
     ch3_output_sample = dac(wave);
 }
+void APU::enable_ch4()
+{
+    bit_set(&nr52_master_control, 3);
+    ch4_period_counter = 0;
+    ch4_length_timer = ch4_initial_length_timer();
+    ch4_volume = ch4_initial_volume();
+    ch4_envelope_iteration_increase = bit_test(&nr42_ch4_volume_envelope, 3);
+    ch4_envelope_iteration_pace = nr42_ch4_volume_envelope & 0x07;
+    ch4_envelope_iteration_counter = 0;
+    ch4_lfsr = 0;
+}
+void APU::disable_ch4()
+{
+    bit_reset(&nr52_master_control, 3);
+}
+void APU::update_lfsr(bool short_mode)
+{
+    u8 b0 = ch4_lfsr & 0x01;
+    u8 b1 = (ch4_lfsr & 0x02) >> 1;
+    bool v = (b0 == b1);
+    ch4_lfsr = (ch4_lfsr & 0x7FFF) + (v ? 0x8000 : 0);
+    if(short_mode)
+    {
+        ch4_lfsr = (ch4_lfsr & 0xFF7F) + (v ? 0x80 : 0);
+    }
+    ch4_lfsr >>= 1;
+}
+void APU::tick_ch4_envelope()
+{
+    if(ch4_enabled() && ch4_envelope_iteration_pace)
+    {
+        ++ch4_envelope_iteration_counter;
+        if(ch4_envelope_iteration_counter >= ch4_envelope_iteration_pace)
+        {
+            if(ch4_envelope_iteration_increase)
+            {
+                if(ch4_volume < 15)
+                {
+                    ++ch4_volume;
+                }
+            }
+            else
+            {
+                if(ch4_volume > 0)
+                {
+                    --ch4_volume;
+                }
+            }
+            ch4_envelope_iteration_counter = 0;
+        }
+    }
+}
+void APU::tick_ch4_length()
+{
+    if(ch4_enabled() && ch4_length_enabled())
+    {
+        ++ch4_length_timer;
+        if(ch4_length_timer >= 64)
+        {
+            disable_ch4();
+        }
+    }
+}
+void APU::tick_ch4(Emulator* emu)
+{
+    ++ch4_period_counter;
+    if(ch4_period_counter >= ch4_period())
+    {
+        // advance to next sample.
+        update_lfsr(!!ch4_lfsr_width());
+        ch4_period_counter = 0;
+    }
+    u8 wave = ch4_lfsr & 0x01;
+    wave *= ch4_volume;
+    ch4_output_sample = dac(wave);
+}
 void APU::init()
 {
     memzero(this);
@@ -322,6 +400,11 @@ void APU::tick(Emulator* emu)
         {
             tick_ch3(emu);
         }
+        // Tick CH4.
+        if(ch4_enabled())
+        {
+            tick_ch4(emu);
+        }
         // Mixer.
         // Output volume range in [-4, 4].
         f32 sample_l = 0.0f;
@@ -332,6 +415,8 @@ void APU::tick(Emulator* emu)
         if(ch2_r_enabled()) sample_r += ch2_output_sample;
         if(ch3_l_enabled()) sample_l += ch3_output_sample;
         if(ch3_r_enabled()) sample_r += ch3_output_sample;
+        if(ch4_l_enabled()) sample_l += ch4_output_sample;
+        if(ch4_r_enabled()) sample_r += ch4_output_sample;
         // Volume control.
         // Scale output volume to [-1, 1].
         sample_l /= 4.0f;
@@ -394,6 +479,21 @@ u8 APU::bus_read(u16 addr)
             return nr34_ch3_period_high_control & 0x40;
         }
         return (&nr30_ch3_dac_enable)[addr - 0xFF1A];
+    }
+    // CH4 registers.
+    if(addr >= 0xFF20 && addr <= 0xFF23)
+    {
+        if(addr == 0xFF20)
+        {
+            // NR41 is write-only.
+            return 0;
+        }
+        if(addr == 0xFF23)
+        {
+            // only bit 6 is readable.
+            return nr44_ch4_control & 0x40;
+        }
+        return (&nr41_ch4_length_timer)[addr - 0xFF20];
     }
     // Master control registers.
     if(addr >= 0xFF24 && addr <= 0xFF26)
@@ -485,6 +585,29 @@ void APU::bus_write(u16 addr, u8 data)
                 data &= 0x7F;
             }
             (&nr30_ch3_dac_enable)[addr - 0xFF1A] = data;
+        }
+        return;
+    }
+    // CH4 registers.
+    if(addr >= 0xFF20 && addr <= 0xFF23)
+    {
+        if(!is_enabled())
+        {
+            // Only NRx1 is writable.
+            if(addr == 0xFF20)
+            {
+                nr41_ch4_length_timer = data;
+            }
+        }
+        else
+        {
+            if(addr == 0xFF23 && bit_test(&data, 7))
+            {
+                // CH4 trigger.
+                enable_ch4();
+                data &= 0x7F;
+            }
+            (&nr41_ch4_length_timer)[addr - 0xFF20] = data;
         }
         return;
     }
