@@ -423,6 +423,22 @@ void APU::tick(Emulator* emu)
         sample_r /= 4.0f;
         sample_l *= ((f32)left_volume()) / 7.0f;
         sample_r *= ((f32)right_volume()) / 7.0f;
+        // Write to histroy buffer.
+        sample_sum_l -= history_samples_l[history_sample_cursor];
+        sample_sum_r -= history_samples_r[history_sample_cursor];
+        history_samples_l[history_sample_cursor] = (u16)((sample_l + 1.0f) * 30.0f); // [0, F] * 4.
+        history_samples_r[history_sample_cursor] = (u16)((sample_r + 1.0f) * 30.0f);
+        sample_sum_l += history_samples_l[history_sample_cursor];
+        sample_sum_r += history_samples_r[history_sample_cursor];
+        history_sample_cursor = (history_sample_cursor + 1) % 65536;
+        // High-pass filter.
+        f32 average_level_l = ((((f32)sample_sum_l) / 65536.0f) / 30.0f) - 1.0f;
+        f32 average_level_r = ((((f32)sample_sum_r) / 65536.0f) / 30.0f) - 1.0f;
+        sample_l -= average_level_l;
+        sample_r -= average_level_r;
+        // Prevent sample value over [-1, 1] limit.
+        sample_l = clamp(sample_l, -1.0f, 1.0f);
+        sample_r = clamp(sample_r, -1.0f, 1.0f);
         // Output samples.
         LockGuard guard(g_app->audio_buffer_lock);
         // Restrict audio buffer size to store at most 65536 samples

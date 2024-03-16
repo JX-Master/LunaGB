@@ -602,14 +602,22 @@ void DebugWindow::apu_gui()
                 ImGui::Text("Audio %s", g_app->emulator->apu.is_enabled() ? "Enabled" : "Disabled");
                 ImGui::Text("Channel 1 %s", g_app->emulator->apu.ch1_enabled() ? "Enabled" : "Disabled");
                 ImGui::Text("Channel 2 %s", g_app->emulator->apu.ch2_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Channel 3 %s", g_app->emulator->apu.ch3_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Channel 4 %s", g_app->emulator->apu.ch4_enabled() ? "Enabled" : "Disabled");
                 ImGui::Text("Left channel");
                 ImGui::Text("Volume: %u/7", (u32)g_app->emulator->apu.left_volume());
                 ImGui::Text("Channel 1 %s", g_app->emulator->apu.ch1_l_enabled() ? "Enabled" : "Disabled");
                 ImGui::Text("Channel 2 %s", g_app->emulator->apu.ch2_l_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Channel 3 %s", g_app->emulator->apu.ch3_l_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Channel 4 %s", g_app->emulator->apu.ch4_l_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Average Volume: %f", ((((f32)g_app->emulator->apu.sample_sum_l) / 65536.0f) / 30.0f) - 1.0f);
                 ImGui::Text("Right channel");
                 ImGui::Text("Volume: %u/7", (u32)g_app->emulator->apu.right_volume());
                 ImGui::Text("Channel 1 %s", g_app->emulator->apu.ch1_r_enabled() ? "Enabled" : "Disabled");
                 ImGui::Text("Channel 2 %s", g_app->emulator->apu.ch2_r_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Channel 3 %s", g_app->emulator->apu.ch3_r_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Channel 4 %s", g_app->emulator->apu.ch4_r_enabled() ? "Enabled" : "Disabled");
+                ImGui::Text("Average Volume: %f", ((((f32)g_app->emulator->apu.sample_sum_r) / 65536.0f) / 30.0f) - 1.0f);
             }
             if(ImGui::CollapsingHeader("Audio Channel 1"))
             {
