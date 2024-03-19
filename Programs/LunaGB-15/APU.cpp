@@ -409,12 +409,12 @@ void APU::tick(Emulator* emu)
         // Output volume range in [-4, 4].
         f32 sample_l = 0.0f;
         f32 sample_r = 0.0f;
-        if(ch1_l_enabled()) sample_l += ch1_output_sample;
-        if(ch1_r_enabled()) sample_r += ch1_output_sample;
-        if(ch2_l_enabled()) sample_l += ch2_output_sample;
-        if(ch2_r_enabled()) sample_r += ch2_output_sample;
-        if(ch3_l_enabled()) sample_l += ch3_output_sample;
-        if(ch3_r_enabled()) sample_r += ch3_output_sample;
+        if(ch1_dac_on() && ch1_l_enabled()) sample_l += ch1_output_sample;
+        if(ch1_dac_on() && ch1_r_enabled()) sample_r += ch1_output_sample;
+        if(ch2_dac_on() && ch2_l_enabled()) sample_l += ch2_output_sample;
+        if(ch2_dac_on() && ch2_r_enabled()) sample_r += ch2_output_sample;
+        if(ch3_dac_on() && ch3_l_enabled()) sample_l += ch3_output_sample;
+        if(ch3_dac_on() && ch3_r_enabled()) sample_r += ch3_output_sample;
         if(ch4_l_enabled()) sample_l += ch4_output_sample;
         if(ch4_r_enabled()) sample_r += ch4_output_sample;
         // Volume control.
@@ -426,14 +426,14 @@ void APU::tick(Emulator* emu)
         // Write to histroy buffer.
         sample_sum_l -= history_samples_l[history_sample_cursor];
         sample_sum_r -= history_samples_r[history_sample_cursor];
-        history_samples_l[history_sample_cursor] = (u16)((sample_l + 1.0f) * 30.0f); // [0, F] * 4.
-        history_samples_r[history_sample_cursor] = (u16)((sample_r + 1.0f) * 30.0f);
+        history_samples_l[history_sample_cursor] = (u16)((sample_l + 1.0f) / 2.0f * 60.0f);
+        history_samples_r[history_sample_cursor] = (u16)((sample_r + 1.0f) / 2.0f * 60.0f);
         sample_sum_l += history_samples_l[history_sample_cursor];
         sample_sum_r += history_samples_r[history_sample_cursor];
         history_sample_cursor = (history_sample_cursor + 1) % 65536;
         // High-pass filter.
-        f32 average_level_l = ((((f32)sample_sum_l) / 65536.0f) / 30.0f) - 1.0f;
-        f32 average_level_r = ((((f32)sample_sum_r) / 65536.0f) / 30.0f) - 1.0f;
+        f32 average_level_l = ((((f32)sample_sum_l) / 65536.0f) / 60.0f * 2.0f) - 1.0f;
+        f32 average_level_r = ((((f32)sample_sum_r) / 65536.0f) / 60.0f * 2.0f) - 1.0f;
         sample_l -= average_level_l;
         sample_r -= average_level_r;
         // Prevent sample value over [-1, 1] limit.

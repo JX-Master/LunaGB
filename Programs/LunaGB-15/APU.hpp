@@ -230,8 +230,8 @@ struct APU
     void tick_ch4(Emulator* emu);
 
     //! Used for high-pass filtering.
-    u16 history_samples_l[65536];
-    u16 history_samples_r[65536];
+    u8 history_samples_l[65536];
+    u8 history_samples_r[65536];
     u16 history_sample_cursor;
     u32 sample_sum_l;
     u32 sample_sum_r;

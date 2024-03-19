@@ -409,12 +409,12 @@ void APU::tick(Emulator* emu)
         // Output volume range in [-4, 4].
         f32 sample_l = 0.0f;
         f32 sample_r = 0.0f;
-        if(ch1_l_enabled()) sample_l += ch1_output_sample;
-        if(ch1_r_enabled()) sample_r += ch1_output_sample;
-        if(ch2_l_enabled()) sample_l += ch2_output_sample;
-        if(ch2_r_enabled()) sample_r += ch2_output_sample;
-        if(ch3_l_enabled()) sample_l += ch3_output_sample;
-        if(ch3_r_enabled()) sample_r += ch3_output_sample;
+        if(ch1_dac_on() && ch1_l_enabled()) sample_l += ch1_output_sample;
+        if(ch1_dac_on() && ch1_r_enabled()) sample_r += ch1_output_sample;
+        if(ch2_dac_on() && ch2_l_enabled()) sample_l += ch2_output_sample;
+        if(ch3_dac_on() && ch2_r_enabled()) sample_r += ch2_output_sample;
+        if(ch3_dac_on() && ch3_l_enabled()) sample_l += ch3_output_sample;
+        if(ch3_dac_on() && ch3_r_enabled()) sample_r += ch3_output_sample;
         if(ch4_l_enabled()) sample_l += ch4_output_sample;
         if(ch4_r_enabled()) sample_r += ch4_output_sample;
         // Volume control.
